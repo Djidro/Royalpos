@@ -1,4 +1,4 @@
-root {
+:root {
     --primary-color: #e67e22;
     --secondary-color: #f39c12;
     --success-color: #2ecc71;
@@ -11,82 +11,544 @@ root {
     --gray: #95a5a6;
     --light-gray: #bdc3c7;
 }
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize the app
-    initApp();
-});
 
-function initApp() {
-    // Tab switching functionality
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const tabId = button.getAttribute('data-tab');
-            switchTab(tabId);
-        });
-    });
-
-    // Initialize all tabs
-    initPOSTab();
-    initReceiptsTab();
-    initSummaryTab();
-    initStockTab();
-    initShiftTab();
-
-    // Check if there's an active shift
-    checkActiveShift();
-
-    // Load low stock alerts
-    checkLowStock();
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-// [Rest of your existing script.js content remains the same, except for the product card HTML in loadProducts()]
+body {
+    background-color: #f5f5f5;
+    color: #333;
+    line-height: 1.6;
+}
 
-function loadProducts() {
-    const productsGrid = document.getElementById('products-grid');
-    productsGrid.innerHTML = '';
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 15px;
+}
 
-    const products = getProducts();
-    
-    if (products.length === 0) {
-        productsGrid.innerHTML = '<p class="no-products">No products available. Add some in the Stock tab.</p>';
-        return;
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+h1 {
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.shift-status {
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.shift-on {
+    background-color: var(--success-color);
+    color: var(--white);
+}
+
+.shift-off {
+    background-color: var(--danger-color);
+    color: var(--white);
+}
+
+nav {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 5px;
+}
+
+.tab-btn {
+    padding: 10px 15px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    border-bottom: 3px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+    color: var(--dark-color);
+}
+
+.tab-btn:hover {
+    background-color: rgba(230, 126, 34, 0.1);
+}
+
+.tab-btn.active {
+    border-bottom: 3px solid var(--primary-color);
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.product-card {
+    background: var(--white);
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid #eee;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.product-card h3 {
+    margin-bottom: 5px;
+    color: var(--primary-color);
+    font-size: 16px;
+}
+
+.product-card p {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.product-card .stock-info {
+    font-size: 12px;
+    color: var(--gray);
+    margin-top: 5px;
+}
+
+.product-card .low-stock {
+    color: var(--danger-color);
+    font-weight: bold;
+}
+
+.cart-container {
+    background: var(--white);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    border: 1px solid #eee;
+}
+
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.cart-item:last-child {
+    border-bottom: none;
+}
+
+.cart-item h4 {
+    font-size: 15px;
+    color: var(--dark-color);
+}
+
+.cart-item p {
+    font-size: 14px;
+    color: var(--gray);
+}
+
+.cart-item-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.cart-item-controls button {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: var(--primary-color);
+    color: var(--white);
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s;
+}
+
+.cart-item-controls button:hover {
+    background: var(--secondary-color);
+}
+
+.cart-item-controls span {
+    margin: 0 10px;
+    font-weight: bold;
+    min-width: 20px;
+    text-align: center;
+}
+
+.cart-total {
+    margin-top: 15px;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: right;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+.payment-options {
+    margin: 15px 0;
+    display: flex;
+    gap: 20px;
+}
+
+.payment-options label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.btn {
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: background 0.3s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.btn:hover {
+    background: var(--secondary-color);
+    transform: translateY(-2px);
+}
+
+.btn:disabled {
+    background: var(--light-gray);
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn i {
+    font-size: 16px;
+}
+
+#receipts-list {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.receipt-item {
+    background: var(--white);
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: transform 0.2s;
+    border: 1px solid #eee;
+}
+
+.receipt-item:hover {
+    transform: translateY(-3px);
+}
+
+.receipt-item h3 {
+    color: var(--primary-color);
+    margin-bottom: 5px;
+    font-size: 16px;
+}
+
+.receipt-item p {
+    font-size: 14px;
+    color: var(--gray);
+}
+
+.date-filter, .date-range {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.date-filter input, .date-range input {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.stock-form {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.stock-form input {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.stock-alerts {
+    margin-bottom: 20px;
+}
+
+.alert {
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.alert-warning {
+    background-color: rgba(243, 156, 18, 0.2);
+    border-left: 4px solid var(--warning-color);
+    color: var(--dark-color);
+}
+
+.alert-danger {
+    background-color: rgba(231, 76, 60, 0.2);
+    border-left: 4px solid var(--danger-color);
+    color: var(--dark-color);
+}
+
+.stock-item {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto auto;
+    gap: 15px;
+    align-items: center;
+    padding: 12px;
+    background: var(--white);
+    margin-bottom: 10px;
+    border-radius: 8px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    border: 1px solid #eee;
+}
+
+.stock-item span {
+    font-size: 14px;
+}
+
+.stock-item button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: transform 0.2s;
+}
+
+.stock-item button:hover {
+    transform: translateY(-2px);
+}
+
+.edit-btn {
+    background: var(--info-color);
+    color: var(--white);
+}
+
+.delete-btn {
+    background: var(--danger-color);
+    color: var(--white);
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+    overflow-y: auto;
+}
+
+.modal-content {
+    background-color: var(--white);
+    margin: 5% auto;
+    padding: 25px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 5px 30px rgba(0,0,0,0.3);
+    position: relative;
+}
+
+.close {
+    color: var(--gray);
+    position: absolute;
+    right: 25px;
+    top: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.close:hover {
+    color: var(--dark-color);
+}
+
+#shift-summary {
+    margin-top: 20px;
+    background: var(--white);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    border: 1px solid #eee;
+}
+
+.summary-item {
+    margin-bottom: 20px;
+}
+
+.summary-item h3 {
+    color: var(--primary-color);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.summary-table th, .summary-table td {
+    border: 1px solid #eee;
+    padding: 10px;
+    text-align: left;
+}
+
+.summary-table th {
+    background-color: #f9f9f9;
+    font-weight: bold;
+}
+
+.summary-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.summary-table tr:hover {
+    background-color: #f1f1f1;
+}
+
+#shift-closed-alert {
+    margin-top: 15px;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
     }
     
-    products.forEach(product => {
-        const productCard = document.createElement('div');
-        productCard.className = 'product-card';
-        
-        const stockClass = product.quantity < 5 ? 'low-stock' : '';
-        
-        productCard.innerHTML = `
-            <h3>${product.name}</h3>
-            <p>${product.price} RWF</p>
-            <p class="stock-info ${stockClass}">Stock: ${product.quantity} ${product.quantity < 5 ? '(Low Stock!)' : ''}</p>
-        `;
-        
-        productCard.addEventListener('click', () => addToCart(product.id));
-        productsGrid.appendChild(productCard);
-    });
+    .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+    
+    .stock-form {
+        grid-template-columns: 1fr;
+    }
+    
+    .stock-item {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto;
+        gap: 10px;
+    }
+    
+    .payment-options {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .date-filter, .date-range {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .modal-content {
+        margin: 10% auto;
+        width: 95%;
+        padding: 20px 15px;
+    }
 }
 
-// [Keep all other functions exactly the same as in your original script.js]
-
-// Update the initializeSampleData function to remove image references
-function initializeSampleData() {
-    if (localStorage.getItem('bakeryPosInitialized')) return;
-
-    const sampleProducts = [
-        { id: 1, name: "Bread", price: 1000, quantity: 20 },
-        { id: 2, name: "Croissant", price: 1500, quantity: 15 },
-        { id: 3, name: "Cake", price: 5000, quantity: 5 },
-        { id: 4, name: "Donut", price: 800, quantity: 30 },
-        { id: 5, name: "Cookie", price: 300, quantity: 50 }
-    ];
-
-    saveProducts(sampleProducts);
-    localStorage.setItem('bakeryPosInitialized', 'true');
+@media (max-width: 480px) {
+    .products-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    nav {
+        gap: 5px;
+    }
+    
+    .tab-btn {
+        padding: 8px 10px;
+        font-size: 14px;
+    }
+    
+    .tab-btn i {
+        font-size: 14px;
+    }
+    
+    .cart-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .cart-item-controls {
+        width: 100%;
+        justify-content: flex-end;
+    }
 }
-
-// Call initialization
-initializeSampleData();
