@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bakery POS System</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#e67e22">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-bread-slice"></i> Bakery POS</h1>
+            <div id="shift-status" class="shift-off">Shift: Not Started</div>
+        </header>
+
+        <nav>
+            <button class="tab-btn active" data-tab="pos"><i class="fas fa-cash-register"></i> POS</button>
+            <button class="tab-btn" data-tab="receipts"><i class="fas fa-receipt"></i> Receipts</button>
+            <button class="tab-btn" data-tab="summary"><i class="fas fa-chart-bar"></i> Summary</button>
+            <button class="tab-btn" data-tab="stock"><i class="fas fa-boxes"></i> Stock</button>
+            <button class="tab-btn" data-tab="shift"><i class="fas fa-user-clock"></i> Shift</button>
+        </nav>
+
+        <main>
+            <!-- POS Tab -->
+            <div id="pos" class="tab-content active">
+                <div class="products-grid" id="products-grid">
+                    <!-- Products will be loaded here -->
+                </div>
+                
+                <div class="cart-container">
+                    <h2><i class="fas fa-shopping-cart"></i> Cart</h2>
+                    <div id="cart-items">
+                        <!-- Cart items will be loaded here -->
+                    </div>
+                    <div class="cart-total">
+                        <p>Total: <span id="cart-total">0</span> RWF</p>
+                    </div>
+                    <div class="payment-options">
+                        <label><input type="radio" name="payment" value="cash" checked> <i class="fas fa-money-bill-wave"></i> Cash</label>
+                        <label><input type="radio" name="payment" value="momo"> <i class="fas fa-mobile-alt"></i> MoMo</label>
+                    </div>
+                    <button id="checkout-btn" class="btn" disabled><i class="fas fa-check-circle"></i> Checkout</button>
+                    <div id="shift-closed-alert" class="alert alert-warning" style="display: none;">
+                        <i class="fas fa-exclamation-triangle"></i> Cannot checkout - shift is not started!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receipts Tab -->
+            <div id="receipts" class="tab-content">
+                <h2><i class="fas fa-receipt"></i> Recent Receipts</h2>
+                <div class="date-filter">
+                    <input type="date" id="receipt-date-filter">
+                    <button id="filter-receipts-btn" class="btn"><i class="fas fa-filter"></i> Filter</button>
+                </div>
+                <div id="receipts-list">
+                    <!-- Receipts will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Summary Tab -->
+            <div id="summary" class="tab-content">
+                <h2><i class="fas fa-chart-bar"></i> Sales Summary</h2>
+                <div class="date-range">
+                    <input type="date" id="start-date">
+                    <span>to</span>
+                    <input type="date" id="end-date">
+                    <button id="filter-summary-btn" class="btn"><i class="fas fa-filter"></i> Filter</button>
+                </div>
+                <div id="summary-content">
+                    <!-- Summary will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Stock Management Tab -->
+            <div id="stock" class="tab-content">
+                <h2><i class="fas fa-boxes"></i> Stock Management</h2>
+                <div class="stock-form">
+                    <input type="text" id="item-name" placeholder="Item Name">
+                    <input type="number" id="item-price" placeholder="Price (RWF)">
+                    <input type="number" id="item-quantity" placeholder="Quantity">
+                    <button id="add-item-btn" class="btn"><i class="fas fa-plus"></i> Add Item</button>
+                </div>
+                <div class="stock-alerts" id="low-stock-alerts">
+                    <!-- Low stock alerts will appear here -->
+                </div>
+                <div id="stock-items">
+                    <!-- Stock items will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Shift Management Tab -->
+            <div id="shift" class="tab-content">
+                <h2><i class="fas fa-user-clock"></i> Shift Management</h2>
+                <div id="shift-controls">
+                    <button id="start-shift-btn" class="btn"><i class="fas fa-play"></i> Start Shift</button>
+                    <button id="end-shift-btn" class="btn" disabled><i class="fas fa-stop"></i> End Shift</button>
+                </div>
+                <div id="shift-summary">
+                    <!-- Shift summary will be loaded here -->
+                </div>
+                <div id="whatsapp-section" style="display: none;">
+                    <button id="send-whatsapp-btn" class="btn"><i class="fab fa-whatsapp"></i> Send Summary via WhatsApp</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Receipt Modal -->
+    <div id="receipt-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="receipt-content">
+                <!-- Receipt content will be loaded here -->
+            </div>
+            <button id="copy-receipt-btn" class="btn"><i class="fas fa-copy"></i> Copy Receipt</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('SW registered: ', registration))
+                    .catch(err => console.log('SW registration failed: ', err));
+            });
+        }
+    </script>
+</body>
+</html>
