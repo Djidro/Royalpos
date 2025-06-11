@@ -77,3 +77,6 @@ function initializeSampleData() {
 
 // Call initialization
 initializeSampleData();
+document.addEventListener('DOMContentLoaded', function() {
+    initApp();
+});
