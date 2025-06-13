@@ -1,10 +1,16 @@
-const CACHE_NAME = 'bakery-pos-v1';
+const CACHE_NAME = 'bakery-pos-v2'; // Changed from v1 to force cache update
 const urlsToCache = [
   './',
   './index.html',
   './style.css',
   './script.js',
-  './manifest.json'
+  './manifest.json',
+  // Add your icon files (must exist in your project)
+  './icons/icon-144.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  // Cache Font Awesome (for icons)
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css'
 ];
 
 self.addEventListener('install', event => {
@@ -19,4 +25,4 @@ self.addEventListener('fetch', event => {
     caches.match(event.request)
       .then(response => response || fetch(event.request))
   );
-}); 
+});
