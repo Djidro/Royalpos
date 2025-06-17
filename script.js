@@ -147,6 +147,8 @@ function saveCart(cart) {
     localStorage.setItem('bakeryPosCart', JSON.stringify(cart));
 }
 
+// ... (keep all your existing code until updateCartDisplay function) ...
+
 function updateCartDisplay() {
     const cartItemsContainer = document.getElementById('cart-items');
     const cartTotalElement = document.getElementById('cart-total');
@@ -159,7 +161,7 @@ function updateCartDisplay() {
     let total = 0;
 
     cart.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
+        const product = products.find(p => p.id == item.productId); // Note: == instead of ===
         if (!product) return;
 
         const itemTotal = item.price * item.quantity;
@@ -183,42 +185,58 @@ function updateCartDisplay() {
         cartItemsContainer.appendChild(cartItemElement);
     });
 
-    // Add event listeners to buttons
+    // Update event listeners
     document.querySelectorAll('.decrease-btn').forEach(button => {
         button.addEventListener('click', (e) => {
-            const productId = e.target.closest('button').getAttribute('data-id');
+            const productId = parseInt(e.currentTarget.getAttribute('data-id'));
             updateCartItemQuantity(productId, -1);
         });
     });
 
     document.querySelectorAll('.increase-btn').forEach(button => {
         button.addEventListener('click', (e) => {
-            const productId = e.target.closest('button').getAttribute('data-id');
+            const productId = parseInt(e.currentTarget.getAttribute('data-id'));
             updateCartItemQuantity(productId, 1);
         });
     });
 
     document.querySelectorAll('.remove-btn').forEach(button => {
         button.addEventListener('click', (e) => {
-            const productId = e.target.closest('button').getAttribute('data-id');
+            const productId = parseInt(e.currentTarget.getAttribute('data-id'));
             removeFromCart(productId);
         });
     });
 
     cartTotalElement.textContent = total;
+    checkoutBtn.disabled = cart.length === 0 || !getActiveShift();
+}
+
+function removeFromCart(productId) {
+    const cart = getCart();
+    const itemIndex = cart.findIndex(item => item.productId == productId);
     
-    // Enable/disable checkout button based on cart and shift status
-    const activeShift = getActiveShift();
-    checkoutBtn.disabled = cart.length === 0 || !activeShift;
+    if (itemIndex === -1) return;
     
-    // Show/hide shift closed alert
-    const shiftAlert = document.getElementById('shift-closed-alert');
-    if (cart.length > 0 && !activeShift) {
-        shiftAlert.style.display = 'block';
-    } else {
-        shiftAlert.style.display = 'none';
+    const itemName = cart[itemIndex].name;
+    
+    if (confirm(`Are you sure you want to remove ${itemName} from the cart?`)) {
+        cart.splice(itemIndex, 1);
+        saveCart(cart);
+        updateCartDisplay();
+        
+        // Show notification
+        const notification = document.createElement('div');
+        notification.className = 'cart-notification';
+        notification.textContent = `${itemName} removed from cart`;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 2000);
     }
 }
+
+// ... (keep all your remaining existing functions) ...
 
 function updateCartItemQuantity(productId, change) {
     let cart = getCart();
@@ -248,10 +266,26 @@ function updateCartItemQuantity(productId, change) {
 }
 
 function removeFromCart(productId) {
-    let cart = getCart();
-    cart = cart.filter(item => item.productId !== productId);
-    saveCart(cart);
-    updateCartDisplay();
+    const cart = getCart();
+    const item = cart.find(item => item.productId === productId);
+    
+    if (!item) return;
+    
+    if (confirm(`Are you sure you want to remove ${item.name} from the cart?`)) {
+        const updatedCart = cart.filter(item => item.productId !== productId);
+        saveCart(updatedCart);
+        updateCartDisplay();
+        
+        // Show a brief notification
+        const notification = document.createElement('div');
+        notification.className = 'cart-notification';
+        notification.textContent = `${item.name} removed from cart`;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 2000);
+    }
 }
 
 function checkout() {
@@ -770,6 +804,7 @@ function checkActiveShift() {
     }
 }
 
+
 function startShift() {
     const activeShift = {
         id: Date.now(),
@@ -778,7 +813,9 @@ function startShift() {
         sales: [],
         cashTotal: 0,
         momoTotal: 0,
-        total: 0
+        total: 0,
+        operator: prompt("Enter operator name:", "") || "Unknown", // Add operator name
+        startingCash: parseFloat(prompt("Enter starting cash amount:", "0")) || 0 // Add starting cash
     };
 
     saveActiveShift(activeShift);
@@ -786,7 +823,7 @@ function startShift() {
     updateShiftDisplay();
     
     // Show notification
-    alert(`Shift #${activeShift.id} started at ${new Date(activeShift.startTime).toLocaleTimeString()}`);
+    alert(`Shift #${activeShift.id} started at ${new Date(activeShift.startTime).toLocaleTimeString()}\nOperator: ${activeShift.operator}`);
 }
 
 function endShift() {
@@ -823,6 +860,7 @@ function endShift() {
 function updateShiftDisplay() {
     const shiftSummary = document.getElementById('shift-summary');
     const activeShift = getActiveShift();
+    const shiftHistory = getShiftHistory();
 
     if (activeShift) {
         const sales = getSales().filter(sale => activeShift.sales.includes(sale.id));
@@ -857,11 +895,13 @@ function updateShiftDisplay() {
         shiftSummary.innerHTML = `
             <h3><i class="fas fa-clipboard-list"></i> Current Shift Summary</h3>
             <p><i class="fas fa-id-badge"></i> Shift ID: ${activeShift.id}</p>
+            <p><i class="fas fa-user"></i> Operator: ${activeShift.operator || 'Unknown'}</p>
             <p><i class="fas fa-play"></i> Started: ${new Date(activeShift.startTime).toLocaleString()}</p>
             <p><i class="fas fa-coins"></i> Total Sales: ${activeShift.total} RWF</p>
             <p><i class="fas fa-money-bill-wave"></i> Cash: ${activeShift.cashTotal} RWF</p>
             <p><i class="fas fa-mobile-alt"></i> MoMo: ${activeShift.momoTotal} RWF</p>
             <p><i class="fas fa-exchange-alt"></i> Transactions: ${activeShift.sales.length}</p>
+            <p><i class="fas fa-wallet"></i> Starting Cash: ${activeShift.startingCash || 0} RWF</p>
             
             <h4><i class="fas fa-box-open"></i> Item Breakdown</h4>
             <table class="summary-table">
@@ -878,23 +918,168 @@ function updateShiftDisplay() {
             </table>
         `;
     } else {
-        const shiftHistory = getShiftHistory();
+        shiftSummary.innerHTML = '<h3><i class="fas fa-history"></i> Shift History</h3>';
+        
         if (shiftHistory.length > 0) {
+            // Show last shift summary
             const lastShift = shiftHistory[shiftHistory.length - 1];
-            shiftSummary.innerHTML = `
-                <h3><i class="fas fa-clipboard-list"></i> Last Shift Summary</h3>
-                <p><i class="fas fa-id-badge"></i> Shift ID: ${lastShift.id}</p>
-                <p><i class="fas fa-play"></i> Started: ${new Date(lastShift.startTime).toLocaleString()}</p>
-                <p><i class="fas fa-stop"></i> Ended: ${new Date(lastShift.endTime).toLocaleString()}</p>
-                <p><i class="fas fa-coins"></i> Total Sales: ${lastShift.total} RWF</p>
-                <p><i class="fas fa-money-bill-wave"></i> Cash: ${lastShift.cashTotal} RWF</p>
-                <p><i class="fas fa-mobile-alt"></i> MoMo: ${lastShift.momoTotal} RWF</p>
-                <p><i class="fas fa-exchange-alt"></i> Transactions: ${lastShift.sales.length}</p>
+            shiftSummary.innerHTML += `
+                <div class="last-shift-summary">
+                    <h4><i class="fas fa-clipboard-list"></i> Last Shift Summary</h4>
+                    <p><i class="fas fa-id-badge"></i> Shift ID: ${lastShift.id}</p>
+                    <p><i class="fas fa-user"></i> Operator: ${lastShift.operator || 'Unknown'}</p>
+                    <p><i class="fas fa-play"></i> Started: ${new Date(lastShift.startTime).toLocaleString()}</p>
+                    <p><i class="fas fa-stop"></i> Ended: ${new Date(lastShift.endTime).toLocaleString()}</p>
+                    <p><i class="fas fa-coins"></i> Total Sales: ${lastShift.total} RWF</p>
+                    <p><i class="fas fa-money-bill-wave"></i> Cash: ${lastShift.cashTotal} RWF</p>
+                    <p><i class="fas fa-mobile-alt"></i> MoMo: ${lastShift.momoTotal} RWF</p>
+                    <p><i class="fas fa-exchange-alt"></i> Transactions: ${lastShift.sales.length}</p>
+                </div>
             `;
+            
+            // Add history table
+            shiftSummary.innerHTML += `
+                <h4><i class="fas fa-table"></i> Recent Shifts</h4>
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Operator</th>
+                            <th>Date</th>
+                            <th>Duration</th>
+                            <th>Total</th>
+                            <th>Transactions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${shiftHistory.slice().reverse().slice(0, 5).map(shift => `
+                            <tr class="shift-row" data-id="${shift.id}">
+                                <td>${shift.id}</td>
+                                <td>${shift.operator || 'Unknown'}</td>
+                                <td>${new Date(shift.startTime).toLocaleDateString()}</td>
+                                <td>${formatDuration(shift.startTime, shift.endTime)}</td>
+                                <td>${shift.total} RWF</td>
+                                <td>${shift.sales.length}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            // Add click handler for shift rows
+            document.querySelectorAll('.shift-row').forEach(row => {
+                row.addEventListener('click', () => {
+                    const shiftId = row.getAttribute('data-id');
+                    viewShiftDetails(shiftId);
+                });
+            });
         } else {
-            shiftSummary.innerHTML = '<p class="no-shift">No active shift. Start a new shift to track sales.</p>';
+            shiftSummary.innerHTML += '<p class="no-shift">No shift history found.</p>';
         }
     }
+}
+
+// Add this helper function to format duration
+function formatDuration(start, end) {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const diffMs = endDate - startDate;
+    
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return `${hours}h ${minutes}m`;
+}
+
+// Add this function to view shift details
+function viewShiftDetails(shiftId) {
+    const shiftHistory = getShiftHistory();
+    const shift = shiftHistory.find(s => s.id === parseInt(shiftId));
+    
+    if (!shift) return;
+    
+    const sales = getSales().filter(sale => shift.sales.includes(sale.id));
+    
+    // Calculate item breakdown
+    const itemBreakdown = {};
+    sales.forEach(sale => {
+        sale.items.forEach(item => {
+            if (!itemBreakdown[item.name]) {
+                itemBreakdown[item.name] = {
+                    quantity: 0,
+                    total: 0
+                };
+            }
+            itemBreakdown[item.name].quantity += item.quantity;
+            itemBreakdown[item.name].total += item.quantity * item.price;
+        });
+    });
+
+    // Format details
+    let detailsHtml = `
+        <h3><i class="fas fa-clipboard-list"></i> Shift Details #${shift.id}</h3>
+        <p><i class="fas fa-user"></i> Operator: ${shift.operator || 'Unknown'}</p>
+        <p><i class="fas fa-play"></i> Started: ${new Date(shift.startTime).toLocaleString()}</p>
+        <p><i class="fas fa-stop"></i> Ended: ${new Date(shift.endTime).toLocaleString()}</p>
+        <p><i class="fas fa-clock"></i> Duration: ${formatDuration(shift.startTime, shift.endTime)}</p>
+        <p><i class="fas fa-coins"></i> Total Sales: ${shift.total} RWF</p>
+        <p><i class="fas fa-money-bill-wave"></i> Cash: ${shift.cashTotal} RWF</p>
+        <p><i class="fas fa-mobile-alt"></i> MoMo: ${shift.momoTotal} RWF</p>
+        <p><i class="fas fa-exchange-alt"></i> Transactions: ${shift.sales.length}</p>
+        <p><i class="fas fa-wallet"></i> Starting Cash: ${shift.startingCash || 0} RWF</p>
+        
+        <h4><i class="fas fa-box-open"></i> Item Breakdown</h4>
+        <table class="summary-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${Object.entries(itemBreakdown).map(([name, data]) => `
+                    <tr>
+                        <td>${name}</td>
+                        <td>${data.quantity}</td>
+                        <td>${data.total} RWF</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        
+        <button id="close-details-btn" class="btn" style="margin-top: 20px;">
+            <i class="fas fa-times"></i> Close
+        </button>
+    `;
+
+    // Create a modal for details
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            ${detailsHtml}
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'block';
+    
+    // Add close handlers
+    modal.querySelector('.close').addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    modal.querySelector('#close-details-btn').addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    window.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            modal.remove();
+        }
+    });
 }
 
 function sendWhatsAppSummary() {
@@ -925,8 +1110,11 @@ function sendWhatsAppSummary() {
     // Format summary message
     let message = `*🍞 Bakery Shift Summary 🍞*\n\n`;
     message += `*Shift ID:* ${lastShift.id}\n`;
+    message += `*Operator:* ${lastShift.operator || 'Unknown'}\n`;
     message += `*Start Time:* ${new Date(lastShift.startTime).toLocaleString()}\n`;
-    message += `*End Time:* ${new Date(lastShift.endTime).toLocaleString()}\n\n`;
+    message += `*End Time:* ${new Date(lastShift.endTime).toLocaleString()}\n`;
+    message += `*Duration:* ${formatDuration(lastShift.startTime, lastShift.endTime)}\n\n`;
+    message += `*Starting Cash:* ${lastShift.startingCash || 0} RWF\n`;
     message += `*Total Sales:* ${lastShift.total} RWF\n`;
     message += `- 💵 Cash: ${lastShift.cashTotal} RWF\n`;
     message += `- 📱 MoMo: ${lastShift.momoTotal} RWF\n`;
@@ -936,6 +1124,10 @@ function sendWhatsAppSummary() {
     for (const [name, data] of Object.entries(itemBreakdown)) {
         message += `- ${name}: ${data.quantity} × ${(data.total/data.quantity).toFixed(2)} RWF = ${data.total} RWF\n`;
     }
+
+    // Calculate cash to deposit (starting cash + cash sales)
+    const cashToDeposit = (lastShift.startingCash || 0) + lastShift.cashTotal;
+    message += `\n*Cash to Deposit:* ${cashToDeposit} RWF\n`;
 
     // Encode message for WhatsApp URL
     const encodedMessage = encodeURIComponent(message);
