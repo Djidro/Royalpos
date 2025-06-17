@@ -814,8 +814,8 @@ function startShift() {
         cashTotal: 0,
         momoTotal: 0,
         total: 0,
-        operator: prompt("Enter operator name:", "") || "Unknown", // Add operator name
-        startingCash: parseFloat(prompt("Enter starting cash amount:", "0")) || 0 // Add starting cash
+        operator: prompt("Shyiramo izina ryawe :", "") || "Unknown", // Add operator name
+        startingCash: parseFloat(prompt("utangiranye amafaranga angahe:", "0")) || 0 // Add starting cash
     };
 
     saveActiveShift(activeShift);
@@ -944,7 +944,7 @@ function updateShiftDisplay() {
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Operator</th>
+                            <th>Izina</th>
                             <th>Date</th>
                             <th>Duration</th>
                             <th>Total</th>
@@ -955,7 +955,7 @@ function updateShiftDisplay() {
                         ${shiftHistory.slice().reverse().slice(0, 5).map(shift => `
                             <tr class="shift-row" data-id="${shift.id}">
                                 <td>${shift.id}</td>
-                                <td>${shift.operator || 'Unknown'}</td>
+                                <td>${shift.name || 'Unknown'}</td>
                                 <td>${new Date(shift.startTime).toLocaleDateString()}</td>
                                 <td>${formatDuration(shift.startTime, shift.endTime)}</td>
                                 <td>${shift.total} RWF</td>
@@ -1018,7 +1018,7 @@ function viewShiftDetails(shiftId) {
     // Format details
     let detailsHtml = `
         <h3><i class="fas fa-clipboard-list"></i> Shift Details #${shift.id}</h3>
-        <p><i class="fas fa-user"></i> Operator: ${shift.operator || 'Unknown'}</p>
+        <p><i class="fas fa-user"></i> Name: ${shift.operator || 'Unknown'}</p>
         <p><i class="fas fa-play"></i> Started: ${new Date(shift.startTime).toLocaleString()}</p>
         <p><i class="fas fa-stop"></i> Ended: ${new Date(shift.endTime).toLocaleString()}</p>
         <p><i class="fas fa-clock"></i> Duration: ${formatDuration(shift.startTime, shift.endTime)}</p>
