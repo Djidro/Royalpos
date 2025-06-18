@@ -147,8 +147,6 @@ function saveCart(cart) {
     localStorage.setItem('bakeryPosCart', JSON.stringify(cart));
 }
 
-// ... (keep all your existing code until updateCartDisplay function) ...
-
 function updateCartDisplay() {
     const cartItemsContainer = document.getElementById('cart-items');
     const cartTotalElement = document.getElementById('cart-total');
@@ -161,7 +159,7 @@ function updateCartDisplay() {
     let total = 0;
 
     cart.forEach(item => {
-        const product = products.find(p => p.id == item.productId); // Note: == instead of ===
+        const product = products.find(p => p.id == item.productId);
         if (!product) return;
 
         const itemTotal = item.price * item.quantity;
@@ -210,33 +208,6 @@ function updateCartDisplay() {
     cartTotalElement.textContent = total;
     checkoutBtn.disabled = cart.length === 0 || !getActiveShift();
 }
-
-function removeFromCart(productId) {
-    const cart = getCart();
-    const itemIndex = cart.findIndex(item => item.productId == productId);
-    
-    if (itemIndex === -1) return;
-    
-    const itemName = cart[itemIndex].name;
-    
-    if (confirm(`Are you sure you want to remove ${itemName} from the cart?`)) {
-        cart.splice(itemIndex, 1);
-        saveCart(cart);
-        updateCartDisplay();
-        
-        // Show notification
-        const notification = document.createElement('div');
-        notification.className = 'cart-notification';
-        notification.textContent = `${itemName} removed from cart`;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.remove();
-        }, 2000);
-    }
-}
-
-// ... (keep all your remaining existing functions) ...
 
 function updateCartItemQuantity(productId, change) {
     let cart = getCart();
@@ -325,7 +296,8 @@ function checkout() {
         })),
         total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
         paymentMethod: paymentMethod,
-        shiftId: activeShift.id
+        shiftId: activeShift.id,
+        refunded: false
     };
 
     // Update stock
@@ -376,6 +348,85 @@ function initReceiptsTab() {
     // Set today's date as default filter
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('receipt-date-filter').value = today;
+
+    // Add refund button to receipt modal
+    document.getElementById('receipt-modal').addEventListener('click', function(e) {
+        if (e.target.id === 'refund-receipt-btn') {
+            const receiptId = parseInt(e.target.getAttribute('data-id'));
+            processRefund(receiptId);
+        }
+    });
+}
+
+function processRefund(receiptId) {
+    if (!confirm('Are you sure you want to process a refund for this receipt?')) return;
+    
+    const activeShift = getActiveShift();
+    if (!activeShift) {
+        alert('Please start a shift before processing refunds!');
+        return;
+    }
+    
+    const sales = getSales();
+    const receiptIndex = sales.findIndex(s => s.id === receiptId);
+    
+    if (receiptIndex === -1) {
+        alert('Receipt not found!');
+        return;
+    }
+    
+    const receipt = sales[receiptIndex];
+    
+    if (receipt.refunded) {
+        alert('This receipt has already been refunded!');
+        return;
+    }
+    
+    // Mark as refunded
+    receipt.refunded = true;
+    receipt.refundDate = new Date().toISOString();
+    receipt.refundShiftId = activeShift.id;
+    
+    // Update stock
+    const products = getProducts();
+    receipt.items.forEach(item => {
+        const productIndex = products.findIndex(p => p.id === item.productId);
+        if (productIndex !== -1) {
+            products[productIndex].quantity += item.quantity;
+        }
+    });
+    
+    // Update shift totals
+    if (receipt.paymentMethod === 'cash') {
+        activeShift.cashTotal -= receipt.total;
+    } else {
+        activeShift.momoTotal -= receipt.total;
+    }
+    activeShift.total -= receipt.total;
+    
+    // Remove from shift sales if it exists
+    const shiftSaleIndex = activeShift.sales.indexOf(receiptId);
+    if (shiftSaleIndex !== -1) {
+        activeShift.sales.splice(shiftSaleIndex, 1);
+    }
+    
+    // Add to refunds
+    if (!activeShift.refunds) activeShift.refunds = [];
+    activeShift.refunds.push(receiptId);
+    
+    // Save all changes
+    saveProducts(products);
+    saveSales(sales);
+    saveActiveShift(activeShift);
+    
+    // Update displays
+    loadReceipts();
+    loadProducts();
+    updateShiftDisplay();
+    checkLowStock();
+    
+    alert('Refund processed successfully!');
+    document.getElementById('receipt-modal').style.display = 'none';
 }
 
 function loadReceipts() {
@@ -398,9 +449,9 @@ function loadReceipts() {
     // Display receipts in reverse chronological order
     filteredSales.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(sale => {
         const receiptItem = document.createElement('div');
-        receiptItem.className = 'receipt-item';
+        receiptItem.className = `receipt-item ${sale.refunded ? 'refunded' : ''}`;
         receiptItem.innerHTML = `
-            <h3>Receipt #${sale.id}</h3>
+            <h3>Receipt #${sale.id} ${sale.refunded ? '(Refunded)' : ''}</h3>
             <p><i class="far fa-clock"></i> ${new Date(sale.date).toLocaleString()}</p>
             <p><i class="fas fa-money-bill-wave"></i> ${sale.total} RWF (${sale.paymentMethod.toUpperCase()})</p>
             <p><i class="fas fa-boxes"></i> ${sale.items.reduce((sum, item) => sum + item.quantity, 0)} items</p>
@@ -454,6 +505,22 @@ function showReceipt(sale) {
         </table>
     `;
 
+    // Add refund button if not already refunded
+    if (!sale.refunded) {
+        receiptContent.innerHTML += `
+            <button id="refund-receipt-btn" class="btn btn-danger" data-id="${sale.id}" style="margin-top: 20px;">
+                <i class="fas fa-undo"></i> Process Refund
+            </button>
+        `;
+    } else {
+        receiptContent.innerHTML += `
+            <div class="alert alert-warning" style="margin-top: 20px;">
+                <i class="fas fa-exclamation-triangle"></i> This receipt was refunded on ${new Date(sale.refundDate).toLocaleString()}
+                ${sale.refundShiftId ? `(Shift ID: ${sale.refundShiftId})` : ''}
+            </div>
+        `;
+    }
+
     // Set up copy receipt button
     document.getElementById('copy-receipt-btn').onclick = function() {
         const receiptText = `Receipt #${sale.id}\nDate: ${new Date(sale.date).toLocaleString()}\nPayment Method: ${sale.paymentMethod.toUpperCase()}\nShift ID: ${sale.shiftId || 'N/A'}\n\nItems:\n${
@@ -503,8 +570,9 @@ function loadSummary() {
     const endDate = document.getElementById('end-date').value;
     const sales = getSales();
 
-    // Filter sales by date range
+    // Filter sales by date range and exclude refunded sales
     const filteredSales = sales.filter(sale => {
+        if (sale.refunded) return false;
         const saleDate = sale.date.split('T')[0];
         return (!startDate || saleDate >= startDate) && (!endDate || saleDate <= endDate);
     });
@@ -514,7 +582,7 @@ function loadSummary() {
         return;
     }
 
-    // Calculate summary data
+    // Calculate summary data (excluding refunded sales)
     const cashTotal = filteredSales
         .filter(sale => sale.paymentMethod === 'cash')
         .reduce((sum, sale) => sum + sale.total, 0);
@@ -542,24 +610,29 @@ function loadSummary() {
         });
     });
 
-    // Format item breakdown table
+    // Format item breakdown table with current stock levels
+    const products = getProducts();
     let itemsHtml = '';
     for (const [name, data] of Object.entries(itemBreakdown)) {
+        const product = products.find(p => p.name === name);
+        const remainingStock = product ? product.quantity : 'N/A';
+        
         itemsHtml += `
             <tr>
                 <td>${name}</td>
                 <td>${data.quantity}</td>
+                <td>${remainingStock}</td>
                 <td>${data.price} RWF</td>
                 <td>${data.total} RWF</td>
             </tr>
         `;
     }
 
-    // Display summary
+    // Display summary with enhanced item breakdown
     summaryContent.innerHTML = `
         <div class="summary-item">
             <h3><i class="fas fa-chart-pie"></i> Sales Summary</h3>
-            <p><i class="far fa-calendar-alt"></i> Date Range: ${startDate} to ${endDate}</p>
+            <p><i class="far fa-calendar-alt"></i> Date Range: ${startDate || 'No start date'} to ${endDate || 'No end date'}</p>
             <p><i class="fas fa-exchange-alt"></i> Total Transactions: ${transactionCount}</p>
             <p><i class="fas fa-money-bill-wave"></i> Cash Total: ${cashTotal} RWF</p>
             <p><i class="fas fa-mobile-alt"></i> MoMo Total: ${momoTotal} RWF</p>
@@ -567,13 +640,14 @@ function loadSummary() {
         </div>
         
         <div class="summary-item">
-            <h3><i class="fas fa-box-open"></i> Item Breakdown</h3>
+            <h3><i class="fas fa-box-open"></i> Daily Item Breakdown</h3>
             <table class="summary-table">
                 <thead>
                     <tr>
                         <th>Item</th>
-                        <th>Quantity</th>
-                        <th>Price</th>
+                        <th>Quantity Sold</th>
+                        <th>Stock Remaining</th>
+                        <th>Unit Price</th>
                         <th>Total</th>
                     </tr>
                 </thead>
@@ -582,7 +656,69 @@ function loadSummary() {
                 </tbody>
             </table>
         </div>
+        
+        <div class="summary-item">
+            <h3><i class="fas fa-calendar-day"></i> Daily Sales</h3>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Transactions</th>
+                        <th>Cash</th>
+                        <th>MoMo</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${getDailySalesBreakdown(startDate, endDate).map(day => `
+                        <tr>
+                            <td>${day.date}</td>
+                            <td>${day.transactions}</td>
+                            <td>${day.cash} RWF</td>
+                            <td>${day.momo} RWF</td>
+                            <td>${day.total} RWF</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
     `;
+}
+
+function getDailySalesBreakdown(startDate, endDate) {
+    const sales = getSales().filter(sale => !sale.refunded);
+    const dailySales = {};
+    
+    sales.forEach(sale => {
+        const saleDate = sale.date.split('T')[0];
+        
+        // Skip if outside date range
+        if ((startDate && saleDate < startDate) || (endDate && saleDate > endDate)) {
+            return;
+        }
+        
+        if (!dailySales[saleDate]) {
+            dailySales[saleDate] = {
+                date: saleDate,
+                transactions: 0,
+                cash: 0,
+                momo: 0,
+                total: 0
+            };
+        }
+        
+        dailySales[saleDate].transactions += 1;
+        dailySales[saleDate].total += sale.total;
+        
+        if (sale.paymentMethod === 'cash') {
+            dailySales[saleDate].cash += sale.total;
+        } else {
+            dailySales[saleDate].momo += sale.total;
+        }
+    });
+    
+    // Convert to array and sort by date
+    return Object.values(dailySales).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // Stock Management Tab Functions
@@ -804,7 +940,6 @@ function checkActiveShift() {
     }
 }
 
-
 function startShift() {
     const activeShift = {
         id: Date.now(),
@@ -814,8 +949,8 @@ function startShift() {
         cashTotal: 0,
         momoTotal: 0,
         total: 0,
-        operator: prompt("Shyiramo izina ryawe :", "") || "Unknown", // Add operator name
-        startingCash: parseFloat(prompt("utangiranye amafaranga angahe:", "0")) || 0 // Add starting cash
+        operator: prompt("Shyiramo izina ryawe :", "") || "Unknown",
+        startingCash: parseFloat(prompt("utangiranye amafaranga angahe:", "0")) || 0
     };
 
     saveActiveShift(activeShift);
@@ -864,6 +999,7 @@ function updateShiftDisplay() {
 
     if (activeShift) {
         const sales = getSales().filter(sale => activeShift.sales.includes(sale.id));
+        const products = getProducts();
         
         // Calculate item breakdown
         const itemBreakdown = {};
@@ -883,10 +1019,14 @@ function updateShiftDisplay() {
         // Format item breakdown table
         let itemsHtml = '';
         for (const [name, data] of Object.entries(itemBreakdown)) {
+            const product = products.find(p => p.name === name);
+            const remainingStock = product ? product.quantity : 'N/A';
+            
             itemsHtml += `
                 <tr>
                     <td>${name}</td>
                     <td>${data.quantity}</td>
+                    <td>${remainingStock}</td>
                     <td>${data.total} RWF</td>
                 </tr>
             `;
@@ -902,13 +1042,15 @@ function updateShiftDisplay() {
             <p><i class="fas fa-mobile-alt"></i> MoMo: ${activeShift.momoTotal} RWF</p>
             <p><i class="fas fa-exchange-alt"></i> Transactions: ${activeShift.sales.length}</p>
             <p><i class="fas fa-wallet"></i> Starting Cash: ${activeShift.startingCash || 0} RWF</p>
+            <p><i class="fas fa-undo"></i> Refunds: ${activeShift.refunds ? activeShift.refunds.length : 0}</p>
             
             <h4><i class="fas fa-box-open"></i> Item Breakdown</h4>
             <table class="summary-table">
                 <thead>
                     <tr>
                         <th>Item</th>
-                        <th>Quantity</th>
+                        <th>Quantity Sold</th>
+                        <th>Stock Remaining</th>
                         <th>Total</th>
                     </tr>
                 </thead>
@@ -928,48 +1070,54 @@ function updateShiftDisplay() {
                     <h4><i class="fas fa-clipboard-list"></i> Last Shift Summary</h4>
                     <p><i class="fas fa-id-badge"></i> Shift ID: ${lastShift.id}</p>
                     <p><i class="fas fa-user"></i> Operator: ${lastShift.operator || 'Unknown'}</p>
-                    <p><i class="fas fa-play"></i> Started: ${new Date(lastShift.startTime).toLocaleString()}</p>
-                    <p><i class="fas fa-stop"></i> Ended: ${new Date(lastShift.endTime).toLocaleString()}</p>
+                    <p><i class="fas fa-calendar-day"></i> Date: ${lastShift.date}</p>
+                    <p><i class="fas fa-play"></i> Started: ${new Date(lastShift.startTime).toLocaleTimeString()}</p>
+                    <p><i class="fas fa-stop"></i> Ended: ${new Date(lastShift.endTime).toLocaleTimeString()}</p>
+                    <p><i class="fas fa-clock"></i> Duration: ${lastShift.duration}</p>
                     <p><i class="fas fa-coins"></i> Total Sales: ${lastShift.total} RWF</p>
                     <p><i class="fas fa-money-bill-wave"></i> Cash: ${lastShift.cashTotal} RWF</p>
                     <p><i class="fas fa-mobile-alt"></i> MoMo: ${lastShift.momoTotal} RWF</p>
-                    <p><i class="fas fa-exchange-alt"></i> Transactions: ${lastShift.sales.length}</p>
+                    <p><i class="fas fa-exchange-alt"></i> Transactions: ${lastShift.sales ? lastShift.sales.length : 0}</p>
+                    <p><i class="fas fa-undo"></i> Refunds: ${lastShift.refunds ? lastShift.refunds.length : 0}</p>
                 </div>
             `;
             
-            // Add history table
+            // Add enhanced history table
             shiftSummary.innerHTML += `
-                <h4><i class="fas fa-table"></i> Recent Shifts</h4>
+                <h4><i class="fas fa-table"></i> Shift History (Last 30 Days)</h4>
                 <table class="summary-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Izina</th>
                             <th>Date</th>
+                            <th>Operator</th>
                             <th>Duration</th>
                             <th>Total</th>
                             <th>Transactions</th>
+                            <th>Refunds</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${shiftHistory.slice().reverse().slice(0, 5).map(shift => `
+                        ${shiftHistory.slice().reverse().slice(0, 30).map(shift => `
                             <tr class="shift-row" data-id="${shift.id}">
-                                <td>${shift.id}</td>
-                                <td>${shift.name || 'Unknown'}</td>
-                                <td>${new Date(shift.startTime).toLocaleDateString()}</td>
-                                <td>${formatDuration(shift.startTime, shift.endTime)}</td>
+                                <td>${shift.date}</td>
+                                <td>${shift.operatorName}</td>
+                                <td>${shift.duration}</td>
                                 <td>${shift.total} RWF</td>
-                                <td>${shift.sales.length}</td>
+                                <td>${shift.sales ? shift.sales.length : 0}</td>
+                                <td>${shift.refunds ? shift.refunds.length : 0}</td>
+                                <td><button class="btn-small view-shift-btn" data-id="${shift.id}">View</button></td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
             `;
             
-            // Add click handler for shift rows
-            document.querySelectorAll('.shift-row').forEach(row => {
-                row.addEventListener('click', () => {
-                    const shiftId = row.getAttribute('data-id');
+            // Add click handler for view buttons
+            document.querySelectorAll('.view-shift-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const shiftId = button.getAttribute('data-id');
                     viewShiftDetails(shiftId);
                 });
             });
@@ -979,19 +1127,6 @@ function updateShiftDisplay() {
     }
 }
 
-// Add this helper function to format duration
-function formatDuration(start, end) {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const diffMs = endDate - startDate;
-    
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return `${hours}h ${minutes}m`;
-}
-
-// Add this function to view shift details
 function viewShiftDetails(shiftId) {
     const shiftHistory = getShiftHistory();
     const shift = shiftHistory.find(s => s.id === parseInt(shiftId));
@@ -999,6 +1134,7 @@ function viewShiftDetails(shiftId) {
     if (!shift) return;
     
     const sales = getSales().filter(sale => shift.sales.includes(sale.id));
+    const products = getProducts();
     
     // Calculate item breakdown
     const itemBreakdown = {};
@@ -1027,24 +1163,31 @@ function viewShiftDetails(shiftId) {
         <p><i class="fas fa-mobile-alt"></i> MoMo: ${shift.momoTotal} RWF</p>
         <p><i class="fas fa-exchange-alt"></i> Transactions: ${shift.sales.length}</p>
         <p><i class="fas fa-wallet"></i> Starting Cash: ${shift.startingCash || 0} RWF</p>
+        <p><i class="fas fa-undo"></i> Refunds: ${shift.refunds ? shift.refunds.length : 0}</p>
         
         <h4><i class="fas fa-box-open"></i> Item Breakdown</h4>
         <table class="summary-table">
             <thead>
                 <tr>
                     <th>Item</th>
-                    <th>Quantity</th>
+                    <th>Quantity Sold</th>
+                    <th>Stock Remaining</th>
                     <th>Total</th>
                 </tr>
             </thead>
             <tbody>
-                ${Object.entries(itemBreakdown).map(([name, data]) => `
-                    <tr>
-                        <td>${name}</td>
-                        <td>${data.quantity}</td>
-                        <td>${data.total} RWF</td>
-                    </tr>
-                `).join('')}
+                ${Object.entries(itemBreakdown).map(([name, data]) => {
+                    const product = products.find(p => p.name === name);
+                    const remainingStock = product ? product.quantity : 'N/A';
+                    return `
+                        <tr>
+                            <td>${name}</td>
+                            <td>${data.quantity}</td>
+                            <td>${remainingStock}</td>
+                            <td>${data.total} RWF</td>
+                        </tr>
+                    `;
+                }).join('')}
             </tbody>
         </table>
         
@@ -1091,6 +1234,7 @@ function sendWhatsAppSummary() {
 
     const lastShift = shiftHistory[shiftHistory.length - 1];
     const sales = getSales().filter(sale => lastShift.sales.includes(sale.id));
+    const products = getProducts();
     
     // Calculate item breakdown
     const itemBreakdown = {};
@@ -1111,18 +1255,22 @@ function sendWhatsAppSummary() {
     let message = `*🍞 Bakery Shift Summary 🍞*\n\n`;
     message += `*Shift ID:* ${lastShift.id}\n`;
     message += `*Operator:* ${lastShift.operator || 'Unknown'}\n`;
-    message += `*Start Time:* ${new Date(lastShift.startTime).toLocaleString()}\n`;
-    message += `*End Time:* ${new Date(lastShift.endTime).toLocaleString()}\n`;
-    message += `*Duration:* ${formatDuration(lastShift.startTime, lastShift.endTime)}\n\n`;
+    message += `*Date:* ${lastShift.date}\n`;
+    message += `*Start Time:* ${new Date(lastShift.startTime).toLocaleTimeString()}\n`;
+    message += `*End Time:* ${new Date(lastShift.endTime).toLocaleTimeString()}\n`;
+    message += `*Duration:* ${lastShift.duration}\n\n`;
     message += `*Starting Cash:* ${lastShift.startingCash || 0} RWF\n`;
     message += `*Total Sales:* ${lastShift.total} RWF\n`;
     message += `- 💵 Cash: ${lastShift.cashTotal} RWF\n`;
     message += `- 📱 MoMo: ${lastShift.momoTotal} RWF\n`;
-    message += `*Transactions:* ${lastShift.sales.length}\n\n`;
+    message += `*Transactions:* ${lastShift.sales ? lastShift.sales.length : 0}\n`;
+    message += `*Refunds:* ${lastShift.refunds ? lastShift.refunds.length : 0}\n\n`;
     message += `*Item Breakdown:*\n`;
     
     for (const [name, data] of Object.entries(itemBreakdown)) {
-        message += `- ${name}: ${data.quantity} × ${(data.total/data.quantity).toFixed(2)} RWF = ${data.total} RWF\n`;
+        const product = products.find(p => p.name === name);
+        const remainingStock = product ? product.quantity : 'N/A';
+        message += `- ${name}: Sold ${data.quantity}, Stock Remaining ${remainingStock} (Total: ${data.total} RWF)\n`;
     }
 
     // Calculate cash to deposit (starting cash + cash sales)
@@ -1135,6 +1283,18 @@ function sendWhatsAppSummary() {
     
     // Open WhatsApp in a new tab
     window.open(whatsappUrl, '_blank');
+}
+
+// Helper function to format duration
+function formatDuration(start, end) {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const diffMs = endDate - startDate;
+    
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return `${hours}h ${minutes}m`;
 }
 
 function getActiveShift() {
@@ -1152,7 +1312,16 @@ function getShiftHistory() {
 }
 
 function saveShiftHistory(history) {
-    localStorage.setItem('bakeryPosShiftHistory', JSON.stringify(history));
+    // Add additional details to each shift record
+    const enhancedHistory = history.map(shift => {
+        return {
+            ...shift,
+            date: shift.startTime.split('T')[0],
+            duration: formatDuration(shift.startTime, shift.endTime),
+            operatorName: shift.operator || 'Unknown'
+        };
+    });
+    localStorage.setItem('bakeryPosShiftHistory', JSON.stringify(enhancedHistory));
 }
 
 // Sales Data Functions
