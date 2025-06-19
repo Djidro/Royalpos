@@ -1035,7 +1035,7 @@ function updateShiftDisplay() {
         shiftSummary.innerHTML = `
             <h3><i class="fas fa-clipboard-list"></i> Current Shift Summary</h3>
             <p><i class="fas fa-id-badge"></i> Shift ID: ${activeShift.id}</p>
-            <p><i class="fas fa-user"></i> Operator: ${activeShift.operator || 'Unknown'}</p>
+            <p><i class="fas fa-user"></i> Cashier: ${activeShift.Cashier || 'Unknown'}</p>
             <p><i class="fas fa-play"></i> Started: ${new Date(activeShift.startTime).toLocaleString()}</p>
             <p><i class="fas fa-coins"></i> Total Sales: ${activeShift.total} RWF</p>
             <p><i class="fas fa-money-bill-wave"></i> Cash: ${activeShift.cashTotal} RWF</p>
