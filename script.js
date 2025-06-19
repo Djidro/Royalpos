@@ -949,8 +949,8 @@ function startShift() {
         cashTotal: 0,
         momoTotal: 0,
         total: 0,
-        operator: prompt("Shyiramo izina ryawe :", "") || "Unknown",
-        startingCash: parseFloat(prompt("utangiranye amafaranga angahe:", "0")) || 0
+       Cashier: prompt("Your name :", "") || "Unknown",
+        startingCash: parseFloat(prompt("Starting cash:", "0")) || 0
     };
 
     saveActiveShift(activeShift);
