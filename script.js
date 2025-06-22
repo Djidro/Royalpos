@@ -88,12 +88,15 @@ function loadProducts() {
         const productCard = document.createElement('div');
         productCard.className = 'product-card';
         
-        const stockClass = product.quantity < 5 ? 'low-stock' : '';
+        // Handle unlimited stock display
+        const stockDisplay = product.quantity === 'unlimited' ? 'Unlimited' : product.quantity;
+        const stockClass = product.quantity !== 'unlimited' && product.quantity < 5 ? 'low-stock' : '';
+        const lowStockWarning = product.quantity !== 'unlimited' && product.quantity < 5 ? '(Low Stock!)' : '';
         
         productCard.innerHTML = `
             <h3>${product.name}</h3>
             <p>${product.price} RWF</p>
-            <p class="stock-info ${stockClass}">Stock: ${product.quantity} ${product.quantity < 5 ? '(Low Stock!)' : ''}</p>
+            <p class="stock-info ${stockClass}">Stock: ${stockDisplay} ${lowStockWarning}</p>
         `;
         
         productCard.addEventListener('click', () => addToCart(product.id));
@@ -111,7 +114,8 @@ function addToCart(productId) {
     const products = getProducts();
     const product = products.find(p => p.id === productId);
     
-    if (!product || product.quantity <= 0) {
+    // Check if product exists and has stock (unless unlimited)
+    if (!product || (product.quantity !== 'unlimited' && product.quantity <= 0)) {
         alert('This item is out of stock!');
         return;
     }
@@ -120,7 +124,8 @@ function addToCart(productId) {
     const existingItem = cart.find(item => item.productId === productId);
 
     if (existingItem) {
-        if (existingItem.quantity >= product.quantity) {
+        // Only check stock if not unlimited
+        if (product.quantity !== 'unlimited' && existingItem.quantity >= product.quantity) {
             alert('Not enough stock available!');
             return;
         }
@@ -219,11 +224,11 @@ function updateCartItemQuantity(productId, change) {
         if (newQuantity <= 0) {
             cart.splice(itemIndex, 1);
         } else {
-            // Check stock availability
+            // Check stock availability (only if not unlimited)
             const products = getProducts();
             const product = products.find(p => p.id === productId);
             
-            if (product && newQuantity > product.quantity) {
+            if (product && product.quantity !== 'unlimited' && newQuantity > product.quantity) {
                 alert('Not enough stock available!');
                 return;
             }
@@ -275,10 +280,10 @@ function checkout() {
     const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
     const products = getProducts();
     
-    // Check stock availability
+    // Check stock availability (skip unlimited items)
     for (const item of cart) {
         const product = products.find(p => p.id === item.productId);
-        if (!product || product.quantity < item.quantity) {
+        if (product && product.quantity !== 'unlimited' && product.quantity < item.quantity) {
             alert(`Not enough stock for ${item.name}!`);
             return;
         }
@@ -300,10 +305,10 @@ function checkout() {
         refunded: false
     };
 
-    // Update stock
+    // Update stock (skip unlimited items)
     cart.forEach(item => {
         const productIndex = products.findIndex(p => p.id === item.productId);
-        if (productIndex !== -1) {
+        if (productIndex !== -1 && products[productIndex].quantity !== 'unlimited') {
             products[productIndex].quantity -= item.quantity;
         }
     });
@@ -646,7 +651,7 @@ function loadSummary() {
                     <tr>
                         <th>Item</th>
                         <th>Quantity Sold</th>
-                        <th>Stock Remaining</th>
+                        <th>Stock Left</th>
                         <th>Unit Price</th>
                         <th>Total</th>
                     </tr>
@@ -744,10 +749,16 @@ function loadStockItems() {
     products.forEach(product => {
         const stockItem = document.createElement('div');
         stockItem.className = 'stock-item';
+        
+        // Handle unlimited stock display
+        const stockDisplay = product.quantity === 'unlimited' ? 'Unlimited' : product.quantity;
+        const stockClass = product.quantity !== 'unlimited' && product.quantity < 5 ? 'low-stock' : '';
+        const lowStockWarning = product.quantity !== 'unlimited' && product.quantity < 5 ? '(Low)' : '';
+        
         stockItem.innerHTML = `
             <span>${product.name}</span>
             <span>${product.price} RWF</span>
-            <span class="${product.quantity < 5 ? 'low-stock' : ''}">${product.quantity} ${product.quantity < 5 ? '(Low)' : ''}</span>
+            <span class="${stockClass}">${stockDisplay} ${lowStockWarning}</span>
             <button class="edit-btn" data-id="${product.id}"><i class="fas fa-edit"></i> Edit</button>
             <button class="delete-btn" data-id="${product.id}"><i class="fas fa-trash"></i> Delete</button>
         `;
@@ -776,7 +787,7 @@ function checkLowStock() {
     lowStockAlerts.innerHTML = '';
     
     const products = getProducts();
-    const lowStockItems = products.filter(p => p.quantity < 5);
+    const lowStockItems = products.filter(p => p.quantity !== 'unlimited' && p.quantity < 5);
     
     if (lowStockItems.length === 0) {
         return;
@@ -802,16 +813,32 @@ function addStockItem() {
     
     const name = nameInput.value.trim();
     const price = parseFloat(priceInput.value);
-    const quantity = parseInt(quantityInput.value);
-
-    if (!name || isNaN(price) || isNaN(quantity)) {
+    let quantity = quantityInput.value.trim().toLowerCase(); // Changed to accept text
+    
+    // Handle unlimited stock case
+    const isUnlimited = quantity === 'unlimited';
+    
+    if (!name || isNaN(price)) {
         alert('Please fill in all fields with valid values!');
         return;
     }
 
-    if (price <= 0 || quantity <= 0) {
-        alert('Price and quantity must be positive numbers!');
+    if (price <= 0) {
+        alert('Price must be a positive number!');
         return;
+    }
+
+    // Convert quantity to number if not unlimited
+    if (!isUnlimited) {
+        quantity = parseInt(quantity);
+        if (isNaN(quantity)) {
+            alert('Quantity must be a number or "unlimited"!');
+            return;
+        }
+        if (quantity <= 0) {
+            alert('Quantity must be positive or "unlimited"!');
+            return;
+        }
     }
 
     const products = getProducts();
@@ -819,8 +846,9 @@ function addStockItem() {
     // Check if item already exists
     const existingItem = products.find(p => p.name.toLowerCase() === name.toLowerCase());
     if (existingItem) {
-        if (confirm('Item already exists. Do you want to update its stock instead?')) {
-            existingItem.quantity += quantity;
+        if (confirm('Item already exists. Do you want to update it instead?')) {
+            existingItem.price = price;
+            existingItem.quantity = isUnlimited ? 'unlimited' : quantity;
             saveProducts(products);
             loadStockItems();
             checkLowStock();
@@ -840,7 +868,7 @@ function addStockItem() {
         id: Date.now(),
         name: name,
         price: price,
-        quantity: quantity
+        quantity: isUnlimited ? 'unlimited' : quantity
     });
 
     saveProducts(products);
@@ -863,20 +891,37 @@ function editStockItem(productId) {
     if (newName === null) return;
     
     const newPrice = parseFloat(prompt('Enter new price:', product.price));
-    if (isNaN(newPrice) || newPrice <= 0) {
-        alert('Price must be a positive number!');
+    if (isNaN(newPrice)) {
+        alert('Price must be a number!');
+        return;
+    }
+    if (newPrice <= 0) {
+        alert('Price must be positive!');
         return;
     }
     
-    const newQuantity = parseInt(prompt('Enter new quantity:', product.quantity));
-    if (isNaN(newQuantity) || newQuantity < 0) {
-        alert('Quantity must be a positive number!');
-        return;
+    let newQuantity = prompt('Enter new quantity (or "unlimited"):', 
+                           product.quantity === 'unlimited' ? 'unlimited' : product.quantity);
+    if (newQuantity === null) return;
+    
+    newQuantity = newQuantity.trim().toLowerCase();
+    const isUnlimited = newQuantity === 'unlimited';
+    
+    if (!isUnlimited) {
+        newQuantity = parseInt(newQuantity);
+        if (isNaN(newQuantity)) {
+            alert('Quantity must be a number or "unlimited"!');
+            return;
+        }
+        if (newQuantity < 0) {
+            alert('Quantity must be positive or "unlimited"!');
+            return;
+        }
     }
 
     product.name = newName;
     product.price = newPrice;
-    product.quantity = newQuantity;
+    product.quantity = isUnlimited ? 'unlimited' : newQuantity;
 
     saveProducts(products);
     loadStockItems();
@@ -941,6 +986,9 @@ function checkActiveShift() {
 }
 
 function startShift() {
+    const cashierName = prompt("Enter cashier name:", "") || "Cashier";
+    const startingCash = parseFloat(prompt("Starting cash amount:", "0")) || 0;
+
     const activeShift = {
         id: Date.now(),
         startTime: new Date().toISOString(),
@@ -949,8 +997,8 @@ function startShift() {
         cashTotal: 0,
         momoTotal: 0,
         total: 0,
-       Cashier: prompt("Your name :", "") || "Unknown",
-        startingCash: parseFloat(prompt("Starting cash:", "0")) || 0
+        Cashier: cashierName,  // Changed from 'operator' to 'Cashier'
+        startingCash: startingCash
     };
 
     saveActiveShift(activeShift);
@@ -958,7 +1006,7 @@ function startShift() {
     updateShiftDisplay();
     
     // Show notification
-    alert(`Shift #${activeShift.id} started at ${new Date(activeShift.startTime).toLocaleTimeString()}\nOperator: ${activeShift.operator}`);
+    alert(`Shift #${activeShift.id} started at ${new Date(activeShift.startTime).toLocaleTimeString()}\nCashier: ${activeShift.Cashier}`);
 }
 
 function endShift() {
@@ -1050,7 +1098,7 @@ function updateShiftDisplay() {
                     <tr>
                         <th>Item</th>
                         <th>Quantity Sold</th>
-                        <th>Stock Remaining</th>
+                        <th>Stock Left</th>
                         <th>Total</th>
                     </tr>
                 </thead>
@@ -1069,7 +1117,7 @@ function updateShiftDisplay() {
                 <div class="last-shift-summary">
                     <h4><i class="fas fa-clipboard-list"></i> Last Shift Summary</h4>
                     <p><i class="fas fa-id-badge"></i> Shift ID: ${lastShift.id}</p>
-                    <p><i class="fas fa-user"></i> Operator: ${lastShift.operator || 'Unknown'}</p>
+                 <p><i class="fas fa-user"></i> Cashier: ${lastShift.Cashier || 'Cashier'}</p>
                     <p><i class="fas fa-calendar-day"></i> Date: ${lastShift.date}</p>
                     <p><i class="fas fa-play"></i> Started: ${new Date(lastShift.startTime).toLocaleTimeString()}</p>
                     <p><i class="fas fa-stop"></i> Ended: ${new Date(lastShift.endTime).toLocaleTimeString()}</p>
@@ -1154,7 +1202,7 @@ function viewShiftDetails(shiftId) {
     // Format details
     let detailsHtml = `
         <h3><i class="fas fa-clipboard-list"></i> Shift Details #${shift.id}</h3>
-        <p><i class="fas fa-user"></i> Name: ${shift.operator || 'Unknown'}</p>
+      <p><i class="fas fa-user"></i> Cashier: ${shift.Cashier || 'Cashier'}</p>
         <p><i class="fas fa-play"></i> Started: ${new Date(shift.startTime).toLocaleString()}</p>
         <p><i class="fas fa-stop"></i> Ended: ${new Date(shift.endTime).toLocaleString()}</p>
         <p><i class="fas fa-clock"></i> Duration: ${formatDuration(shift.startTime, shift.endTime)}</p>
@@ -1171,7 +1219,7 @@ function viewShiftDetails(shiftId) {
                 <tr>
                     <th>Item</th>
                     <th>Quantity Sold</th>
-                    <th>Stock Remaining</th>
+                    <th>Stock Left</th>
                     <th>Total</th>
                 </tr>
             </thead>
@@ -1254,7 +1302,7 @@ function sendWhatsAppSummary() {
     // Format summary message
     let message = `*🍞 Bakery Shift Summary 🍞*\n\n`;
     message += `*Shift ID:* ${lastShift.id}\n`;
-    message += `*Operator:* ${lastShift.operator || 'Unknown'}\n`;
+   message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n`;
     message += `*Date:* ${lastShift.date}\n`;
     message += `*Start Time:* ${new Date(lastShift.startTime).toLocaleTimeString()}\n`;
     message += `*End Time:* ${new Date(lastShift.endTime).toLocaleTimeString()}\n`;
@@ -1270,7 +1318,7 @@ function sendWhatsAppSummary() {
     for (const [name, data] of Object.entries(itemBreakdown)) {
         const product = products.find(p => p.name === name);
         const remainingStock = product ? product.quantity : 'N/A';
-        message += `- ${name}: Sold ${data.quantity}, Stock Remaining ${remainingStock} (Total: ${data.total} RWF)\n`;
+        message += `- ${name}: Sold ${data.quantity}, Left ${remainingStock} (Total: ${data.total} RWF)\n`;
     }
 
     // Calculate cash to deposit (starting cash + cash sales)
