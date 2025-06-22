@@ -1300,7 +1300,7 @@ function sendWhatsAppSummary() {
     });
 
     // Format summary message
-    let message = `*🍞 Bakery Shift Summary 🍞*\n\n`;
+    let message = `* Shift Summary *\n\n`;
     message += `*Shift ID:* ${lastShift.id}\n`;
    message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n`;
     message += `*Date:* ${lastShift.date}\n`;
