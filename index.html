@@ -81,8 +81,11 @@
                 <h2><i class="fas fa-boxes"></i> Stock Management</h2>
                 <div class="stock-form">
                     <input type="text" id="item-name" placeholder="Item Name">
-                    <input type="number" id="item-price" placeholder="Price (RWF)">
-                    <input type="number" id="item-quantity" placeholder="Quantity">
+                    <input type="number" id="item-price" placeholder="Price (RWF)" min="0" step="1">
+                    <input type="text" id="item-quantity" placeholder="Quantity (or 'unlimited')">
+                    <small style="display: block; margin-top: -10px; margin-bottom: 10px; color: #666;">
+                        Enter a number or "unlimited" for items that don't need stock tracking
+                    </small>
                     <button id="add-item-btn" class="btn"><i class="fas fa-plus"></i> Add Item</button>
                 </div>
                 <div class="stock-alerts" id="low-stock-alerts">
