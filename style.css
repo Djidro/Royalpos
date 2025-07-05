@@ -588,3 +588,53 @@ nav {
     opacity: 0.7;
     border-left: 4px solid var(--danger-color);
 }
+/* ===== SHIFT HISTORY IMPROVEMENTS ===== */
+/* Current Shift Summary */
+.current-shift-summary {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+/* Shift Detail Modal Actions */
+.shift-detail-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+#whatsapp-shift-btn {
+    background-color: #25D366; /* WhatsApp green */
+    color: white;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+#whatsapp-shift-btn:hover {
+    background-color: #128C7E; /* Darker green */
+}
+
+#close-details-btn {
+    background-color: #6c757d; /* Bootstrap gray */
+    color: white;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+#close-details-btn:hover {
+    background-color: #5a6268; /* Darker gray */
+}
+
+/* Active/Ongoing shift indicators */
+.shift-ongoing {
+    color: #28a745; /* Green for active shifts */
+    font-weight: bold;
+}
