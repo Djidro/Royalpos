@@ -1139,6 +1139,78 @@ function updateShiftDisplay() {
     const activeShift = getActiveShift();
     const shiftHistory = getShiftHistory();
 
+    // Always show shift history section
+    shiftSummary.innerHTML = '<h3><i class="fas fa-history"></i> Shift History</h3>';
+    
+    if (shiftHistory.length > 0) {
+        // Add filter controls
+        shiftSummary.innerHTML += `
+            <div class="shift-filters">
+                <input type="date" id="shift-start-date" placeholder="Start date">
+                <input type="date" id="shift-end-date" placeholder="End date">
+                <input type="text" id="shift-cashier-filter" placeholder="Filter by cashier">
+                <button id="apply-shift-filters" class="btn-small">Filter</button>
+                <button id="clear-shift-filters" class="btn-small">Clear</button>
+            </div>
+            <div class="shift-history-container">
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Cashier</th>
+                            <th>Duration</th>
+                            <th>Total</th>
+                            <th>Transactions</th>
+                            <th>Refunds</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shift-history-body">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
+                <div class="pagination-controls">
+                    <button id="prev-shift-page" class="btn-small">Previous</button>
+                    <span id="shift-page-info">Page 1 of X</span>
+                    <button id="next-shift-page" class="btn-small">Next</button>
+                </div>
+            </div>
+        `;
+        
+        // Load first page of shifts
+        loadShiftHistoryPage(1);
+        
+        // Add event listeners
+        document.getElementById('apply-shift-filters').addEventListener('click', () => {
+            loadShiftHistoryPage(1);
+        });
+        
+        document.getElementById('clear-shift-filters').addEventListener('click', () => {
+            document.getElementById('shift-start-date').value = '';
+            document.getElementById('shift-end-date').value = '';
+            document.getElementById('shift-cashier-filter').value = '';
+            loadShiftHistoryPage(1);
+        });
+        
+        document.getElementById('prev-shift-page').addEventListener('click', () => {
+            const currentPage = parseInt(document.getElementById('shift-page-info').textContent.match(/Page (\d+)/)[1]);
+            if (currentPage > 1) {
+                loadShiftHistoryPage(currentPage - 1);
+            }
+        });
+        
+        document.getElementById('next-shift-page').addEventListener('click', () => {
+            const currentPage = parseInt(document.getElementById('shift-page-info').textContent.match(/Page (\d+)/)[1]);
+            const totalPages = parseInt(document.getElementById('shift-page-info').textContent.match(/of (\d+)/)[1]);
+            if (currentPage < totalPages) {
+                loadShiftHistoryPage(currentPage + 1);
+            }
+        });
+    } else {
+        shiftSummary.innerHTML += '<p class="no-shift">No shift history found.</p>';
+    }
+
+    // Add current shift summary above history if shift is active
     if (activeShift) {
         const sales = getSales().filter(sale => activeShift.sales.includes(sale.id));
         const products = getProducts();
@@ -1174,98 +1246,36 @@ function updateShiftDisplay() {
             `;
         }
 
-        shiftSummary.innerHTML = `
-            <h3><i class="fas fa-clipboard-list"></i> Current Shift Summary</h3>
-            <p><i class="fas fa-id-badge"></i> Shift ID: ${activeShift.id}</p>
-            <p><i class="fas fa-user"></i> Cashier: ${activeShift.Cashier || 'Unknown'}</p>
-            <p><i class="fas fa-play"></i> Started: ${new Date(activeShift.startTime).toLocaleString()}</p>
-            <p><i class="fas fa-coins"></i> Total Sales: ${activeShift.total} RWF</p>
-            <p><i class="fas fa-money-bill-wave"></i> Cash: ${activeShift.cashTotal} RWF</p>
-            <p><i class="fas fa-mobile-alt"></i> MoMo: ${activeShift.momoTotal} RWF</p>
-            <p><i class="fas fa-exchange-alt"></i> Transactions: ${activeShift.sales.length}</p>
-            <p><i class="fas fa-wallet"></i> Starting Cash: ${activeShift.startingCash || 0} RWF</p>
-            <p><i class="fas fa-undo"></i> Refunds: ${activeShift.refunds ? activeShift.refunds.length : 0}</p>
-            
-            <h4><i class="fas fa-box-open"></i> Item Breakdown</h4>
-            <table class="summary-table">
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Quantity Sold</th>
-                        <th>Stock Left</th>
-                        <th>Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHtml}
-                </tbody>
-            </table>
-        `;
-    } else {
-        shiftSummary.innerHTML = '<h3><i class="fas fa-history"></i> Shift History</h3>';
-        
-        if (shiftHistory.length > 0) {
-            // Show last shift summary
-            const lastShift = shiftHistory[shiftHistory.length - 1];
-            shiftSummary.innerHTML += `
-                <div class="last-shift-summary">
-                    <h4><i class="fas fa-clipboard-list"></i> Last Shift Summary</h4>
-                    <p><i class="fas fa-id-badge"></i> Shift ID: ${lastShift.id}</p>
-                 <p><i class="fas fa-user"></i> Cashier: ${lastShift.Cashier || 'Cashier'}</p>
-                    <p><i class="fas fa-calendar-day"></i> Date: ${lastShift.date}</p>
-                    <p><i class="fas fa-play"></i> Started: ${new Date(lastShift.startTime).toLocaleTimeString()}</p>
-                    <p><i class="fas fa-stop"></i> Ended: ${new Date(lastShift.endTime).toLocaleTimeString()}</p>
-                    <p><i class="fas fa-clock"></i> Duration: ${lastShift.duration}</p>
-                    <p><i class="fas fa-coins"></i> Total Sales: ${lastShift.total} RWF</p>
-                    <p><i class="fas fa-money-bill-wave"></i> Cash: ${lastShift.cashTotal} RWF</p>
-                    <p><i class="fas fa-mobile-alt"></i> MoMo: ${lastShift.momoTotal} RWF</p>
-                    <p><i class="fas fa-exchange-alt"></i> Transactions: ${lastShift.sales ? lastShift.sales.length : 0}</p>
-                    <p><i class="fas fa-undo"></i> Refunds: ${lastShift.refunds ? lastShift.refunds.length : 0}</p>
-                </div>
-            `;
-            
-            // Add enhanced history table
-            shiftSummary.innerHTML += `
-                <h4><i class="fas fa-table"></i> Shift History (Last 30 Days)</h4>
+        // Insert current shift summary at the top
+        shiftSummary.insertAdjacentHTML('afterbegin', `
+            <div class="current-shift-summary">
+                <h3><i class="fas fa-clipboard-list"></i> Current Shift</h3>
+                <p><i class="fas fa-id-badge"></i> Shift ID: ${activeShift.id}</p>
+                <p><i class="fas fa-user"></i> Cashier: ${activeShift.Cashier || 'Cashier'}</p>
+                <p><i class="fas fa-play"></i> Started: ${new Date(activeShift.startTime).toLocaleString()}</p>
+                <p><i class="fas fa-coins"></i> Total Sales: ${activeShift.total} RWF</p>
+                <p><i class="fas fa-money-bill-wave"></i> Cash: ${activeShift.cashTotal} RWF</p>
+                <p><i class="fas fa-mobile-alt"></i> MoMo: ${activeShift.momoTotal} RWF</p>
+                <p><i class="fas fa-exchange-alt"></i> Transactions: ${activeShift.sales.length}</p>
+                <p><i class="fas fa-wallet"></i> Starting Cash: ${activeShift.startingCash || 0} RWF</p>
+                <p><i class="fas fa-undo"></i> Refunds: ${activeShift.refunds ? activeShift.refunds.length : 0}</p>
+                
+                <h4><i class="fas fa-box-open"></i> Item Breakdown</h4>
                 <table class="summary-table">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Operator</th>
-                            <th>Duration</th>
+                            <th>Item</th>
+                            <th>Quantity Sold</th>
+                            <th>Stock Left</th>
                             <th>Total</th>
-                            <th>Transactions</th>
-                            <th>Refunds</th>
-                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${shiftHistory.slice().reverse().slice(0, 30).map(shift => `
-                            <tr class="shift-row" data-id="${shift.id}">
-                                <td>${shift.date}</td>
-                                <td>${shift.operatorName}</td>
-                                <td>${shift.duration}</td>
-                                <td>${shift.total} RWF</td>
-                                <td>${shift.sales ? shift.sales.length : 0}</td>
-                                <td>${shift.refunds ? shift.refunds.length : 0}</td>
-                                <td><button class="btn-small view-shift-btn" data-id="${shift.id}">View</button></td>
-                            </tr>
-                        `).join('')}
+                        ${itemsHtml}
                     </tbody>
                 </table>
-            `;
-            
-            // Add click handler for view buttons
-            document.querySelectorAll('.view-shift-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const shiftId = button.getAttribute('data-id');
-                    viewShiftDetails(shiftId);
-                });
-            });
-        } else {
-            shiftSummary.innerHTML += '<p class="no-shift">No shift history found.</p>';
-        }
+            </div>
+        `);
     }
 }
 
@@ -1285,7 +1295,8 @@ function viewShiftDetails(shiftId) {
             if (!itemBreakdown[item.name]) {
                 itemBreakdown[item.name] = {
                     quantity: 0,
-                    total: 0
+                    total: 0,
+                    price: item.price // Added price for WhatsApp summary
                 };
             }
             itemBreakdown[item.name].quantity += item.quantity;
@@ -1296,15 +1307,15 @@ function viewShiftDetails(shiftId) {
     // Format details
     let detailsHtml = `
         <h3><i class="fas fa-clipboard-list"></i> Shift Details #${shift.id}</h3>
-      <p><i class="fas fa-user"></i> Cashier: ${shift.Cashier || 'Cashier'}</p>
+        <p><i class="fas fa-user"></i> Cashier: ${shift.Cashier || 'Cashier'}</p>
         <p><i class="fas fa-play"></i> Started: ${new Date(shift.startTime).toLocaleString()}</p>
-        <p><i class="fas fa-stop"></i> Ended: ${new Date(shift.endTime).toLocaleString()}</p>
-        <p><i class="fas fa-clock"></i> Duration: ${formatDuration(shift.startTime, shift.endTime)}</p>
+        <p><i class="fas fa-stop"></i> Ended: ${shift.endTime ? new Date(shift.endTime).toLocaleString() : 'Still active'}</p>
+        <p><i class="fas fa-clock"></i> Duration: ${shift.endTime ? formatDuration(shift.startTime, shift.endTime) : 'Ongoing'}</p>
         <p><i class="fas fa-coins"></i> Total Sales: ${shift.total} RWF</p>
         <p><i class="fas fa-money-bill-wave"></i> Cash: ${shift.cashTotal} RWF</p>
         <p><i class="fas fa-mobile-alt"></i> MoMo: ${shift.momoTotal} RWF</p>
         <p><i class="fas fa-exchange-alt"></i> Transactions: ${shift.sales.length}</p>
-        <p><i class="fas fa-wallet"></i> Starting Cash: ${shift.startingCash || 0} RWF</p>
+        ${shift.startingCash ? `<p><i class="fas fa-wallet"></i> Starting Cash: ${shift.startingCash} RWF</p>` : ''}
         <p><i class="fas fa-undo"></i> Refunds: ${shift.refunds ? shift.refunds.length : 0}</p>
         
         <h4><i class="fas fa-box-open"></i> Item Breakdown</h4>
@@ -1313,29 +1324,30 @@ function viewShiftDetails(shiftId) {
                 <tr>
                     <th>Item</th>
                     <th>Quantity Sold</th>
-                    <th>Stock Left</th>
+                    <th>Unit Price</th>
                     <th>Total</th>
                 </tr>
             </thead>
             <tbody>
-                ${Object.entries(itemBreakdown).map(([name, data]) => {
-                    const product = products.find(p => p.name === name);
-                    const remainingStock = product ? product.quantity : 'N/A';
-                    return `
-                        <tr>
-                            <td>${name}</td>
-                            <td>${data.quantity}</td>
-                            <td>${remainingStock}</td>
-                            <td>${data.total} RWF</td>
-                        </tr>
-                    `;
-                }).join('')}
+                ${Object.entries(itemBreakdown).map(([name, data]) => `
+                    <tr>
+                        <td>${name}</td>
+                        <td>${data.quantity}</td>
+                        <td>${data.price} RWF</td>
+                        <td>${data.total} RWF</td>
+                    </tr>
+                `).join('')}
             </tbody>
         </table>
         
-        <button id="close-details-btn" class="btn" style="margin-top: 20px;">
-            <i class="fas fa-times"></i> Close
-        </button>
+        <div class="shift-detail-actions">
+            <button id="whatsapp-shift-btn" class="btn">
+                <i class="fab fa-whatsapp"></i> Send to WhatsApp
+            </button>
+            <button id="close-details-btn" class="btn">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
+        </div>
     `;
 
     // Create a modal for details
@@ -1351,18 +1363,20 @@ function viewShiftDetails(shiftId) {
     document.body.appendChild(modal);
     modal.style.display = 'block';
     
-    // Add close handlers
-    modal.querySelector('.close').addEventListener('click', () => {
-        modal.remove();
+    // Add WhatsApp button functionality
+    modal.querySelector('#whatsapp-shift-btn').addEventListener('click', () => {
+        generateWhatsAppShiftSummary(shift, itemBreakdown, products);
     });
     
-    modal.querySelector('#close-details-btn').addEventListener('click', () => {
-        modal.remove();
-    });
+    // Add close handlers
+    const closeModal = () => modal.remove();
+    
+    modal.querySelector('.close').addEventListener('click', closeModal);
+    modal.querySelector('#close-details-btn').addEventListener('click', closeModal);
     
     window.addEventListener('click', (event) => {
         if (event.target === modal) {
-            modal.remove();
+            closeModal();
         }
     });
 }
@@ -1385,6 +1399,7 @@ function sendWhatsAppSummary() {
             if (!itemBreakdown[item.name]) {
                 itemBreakdown[item.name] = {
                     quantity: 0,
+                    price: item.price,
                     total: 0
                 };
             }
@@ -1393,38 +1408,94 @@ function sendWhatsAppSummary() {
         });
     });
 
+    // Sort items by quantity sold (descending)
+    const sortedItems = Object.entries(itemBreakdown)
+        .sort((a, b) => b[1].quantity - a[1].quantity);
+
     // Format summary message
-    let message = `* Shift Summary *\n\n`;
-    message += `*Shift ID:* ${lastShift.id}\n`;
-   message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n`;
+    const now = new Date();
+    const formattedDate = now.toLocaleDateString('en-GB');
+    const formattedTime = now.toLocaleTimeString('en-GB');
+    
+    let message = `*Bakery Shift Summary*\n\n`;
     message += `*Date:* ${lastShift.date}\n`;
-    message += `*Start Time:* ${new Date(lastShift.startTime).toLocaleTimeString()}\n`;
-    message += `*End Time:* ${new Date(lastShift.endTime).toLocaleTimeString()}\n`;
+    message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n`;
+    message += `*Start Time:* ${new Date(lastShift.startTime).toLocaleTimeString('en-GB', {hour12: false})}\n`;
+    message += `*End Time:* ${new Date(lastShift.endTime).toLocaleTimeString('en-GB', {hour12: false})}\n`;
     message += `*Duration:* ${lastShift.duration}\n\n`;
+    
     message += `*Starting Cash:* ${lastShift.startingCash || 0} RWF\n`;
-    message += `*Total Sales:* ${lastShift.total} RWF\n`;
     message += `- 💵 Cash: ${lastShift.cashTotal} RWF\n`;
     message += `- 📱 MoMo: ${lastShift.momoTotal} RWF\n`;
+    message += `*Total Sales:* ${lastShift.total} RWF\n`;
     message += `*Transactions:* ${lastShift.sales ? lastShift.sales.length : 0}\n`;
     message += `*Refunds:* ${lastShift.refunds ? lastShift.refunds.length : 0}\n\n`;
-    message += `*Item Breakdown:*\n`;
     
-    for (const [name, data] of Object.entries(itemBreakdown)) {
+    // Top 5 Sellers (only top 5)
+    message += `🏆 *Top 5 Sellers*\n`;
+    sortedItems.slice(0, 5).forEach(([name, data], index) => {
+        message += `${index + 1}. ${name} : ${data.quantity} sold\n`;
+    });
+    
+    // Full Item Breakdown (all items)
+    message += `\n🛒 *All Items Sold*\n\n`;
+    sortedItems.forEach(([name, data]) => {
         const product = products.find(p => p.name === name);
-        const remainingStock = product ? product.quantity : 'N/A';
-        message += `- ${name}: Sold ${data.quantity}, Left ${remainingStock} (Total: ${data.total} RWF)\n`;
-    }
+        const remainingStock = product ? 
+            (product.quantity === 'unlimited' ? '∞' : product.quantity) : 'N/A';
+        
+        message += `➤ ${name}\n`;
+        message += `   - Sold: ${data.quantity}\n`;
+        message += `   - Price: ${data.price} RWF\n`;
+        message += `   - Total: ${data.total} RWF\n`;
+        message += `   - Stock Left: ${remainingStock}\n\n`;
+    });
 
-    // Calculate cash to deposit (starting cash + cash sales)
+    // Cash to deposit
     const cashToDeposit = (lastShift.startingCash || 0) + lastShift.cashTotal;
-    message += `\n*Cash to Deposit:* ${cashToDeposit} RWF\n`;
-
-    // Encode message for WhatsApp URL
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+    message += `💰 *Cash to deposit:* ${cashToDeposit} RWF\n\n`;
     
-    // Open WhatsApp in a new tab
-    window.open(whatsappUrl, '_blank');
+    // Footer
+    message += `_Report generated on ${formattedDate}, ${formattedTime}_`;
+
+    // Open WhatsApp
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+}
+
+// [PASTE THIS AFTER sendWhatsAppSummary() BUT BEFORE THE HELPER FUNCTIONS]
+
+function generateWhatsAppShiftSummary(shift, itemBreakdown, products) {
+    // Sort items by quantity sold (descending)
+    const sortedItems = Object.entries(itemBreakdown)
+        .sort((a, b) => b[1].quantity - a[1].quantity);
+
+    // Format summary message
+    let message = `*Shift Summary #${shift.id}*\n\n`;
+    message += `*Cashier:* ${shift.Cashier || 'Cashier'}\n`;
+    message += `*Started:* ${new Date(shift.startTime).toLocaleString()}\n`;
+    message += `*Ended:* ${shift.endTime ? new Date(shift.endTime).toLocaleString() : 'Still active'}\n`;
+    message += `*Duration:* ${shift.endTime ? formatDuration(shift.startTime, shift.endTime) : 'Ongoing'}\n\n`;
+    
+    message += `*Total Sales:* ${shift.total} RWF\n`;
+    message += `- Cash: ${shift.cashTotal} RWF\n`;
+    message += `- MoMo: ${shift.momoTotal} RWF\n`;
+    message += `*Transactions:* ${shift.sales.length}\n`;
+    message += `*Refunds:* ${shift.refunds ? shift.refunds.length : 0}\n\n`;
+    
+    // Item Breakdown
+    message += `*Items Sold:*\n`;
+    sortedItems.forEach(([name, data]) => {
+        const product = products.find(p => p.name === name);
+        message += `\n➤ ${name}\n`;
+        message += `   - Qty: ${data.quantity}\n`;
+        message += `   - Price: ${data.price} RWF\n`;
+        message += `   - Total: ${data.total} RWF\n`;
+    });
+
+    // Open WhatsApp
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
 }
 
 // Helper function to format duration
@@ -1460,7 +1531,7 @@ function saveShiftHistory(history) {
             ...shift,
             date: shift.startTime.split('T')[0],
             duration: formatDuration(shift.startTime, shift.endTime),
-            operatorName: shift.operator || 'Unknown'
+            operatorName: shift.Cashier || 'Cashier'  // Changed to use Cashier field
         };
     });
     localStorage.setItem('bakeryPosShiftHistory', JSON.stringify(enhancedHistory));
@@ -1490,6 +1561,74 @@ function initializeSampleData() {
 
     saveProducts(sampleProducts);
     localStorage.setItem('bakeryPosInitialized', 'true');
+}
+
+function loadShiftHistoryPage(pageNumber) {
+    const shiftsPerPage = 10;
+    const shiftHistory = getShiftHistory();
+    
+    // Apply filters
+    const startDateFilter = document.getElementById('shift-start-date').value;
+    const endDateFilter = document.getElementById('shift-end-date').value;
+    const cashierFilter = document.getElementById('shift-cashier-filter').value.toLowerCase();
+    
+    let filteredShifts = [...shiftHistory].reverse(); // Show newest first
+    
+    if (startDateFilter) {
+        filteredShifts = filteredShifts.filter(shift => shift.date >= startDateFilter);
+    }
+    
+    if (endDateFilter) {
+        filteredShifts = filteredShifts.filter(shift => shift.date <= endDateFilter);
+    }
+    
+    if (cashierFilter) {
+        filteredShifts = filteredShifts.filter(shift => 
+            shift.Cashier && shift.Cashier.toLowerCase().includes(cashierFilter)
+        );
+    }
+    
+    // Calculate pagination
+    const totalPages = Math.ceil(filteredShifts.length / shiftsPerPage);
+    const startIndex = (pageNumber - 1) * shiftsPerPage;
+    const endIndex = Math.min(startIndex + shiftsPerPage, filteredShifts.length);
+    const pageShifts = filteredShifts.slice(startIndex, endIndex);
+    
+    // Update table
+    const tbody = document.getElementById('shift-history-body');
+    tbody.innerHTML = '';
+    
+    pageShifts.forEach(shift => {
+        const row = document.createElement('tr');
+        row.className = 'shift-row';
+        row.setAttribute('data-id', shift.id);
+        row.innerHTML = `
+            <td>${shift.date}</td>
+            <td>${shift.Cashier || 'Cashier'}</td>
+            <td>${shift.duration}</td>
+            <td>${shift.total} RWF</td>
+            <td>${shift.sales ? shift.sales.length : 0}</td>
+            <td>${shift.refunds ? shift.refunds.length : 0}</td>
+            <td><button class="btn-small view-shift-btn" data-id="${shift.id}">View</button></td>
+        `;
+        tbody.appendChild(row);
+    });
+    
+    // Update pagination info
+    document.getElementById('shift-page-info').textContent = `Page ${pageNumber} of ${totalPages}`;
+    
+    // Disable/enable pagination buttons
+    document.getElementById('prev-shift-page').disabled = pageNumber <= 1;
+    document.getElementById('next-shift-page').disabled = pageNumber >= totalPages;
+    
+    // Add click handler for view buttons
+    document.querySelectorAll('.view-shift-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const shiftId = button.getAttribute('data-id');
+            viewShiftDetails(shiftId);
+        });
+    });
 }
 
 // Call initialization
