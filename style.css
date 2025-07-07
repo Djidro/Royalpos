@@ -638,3 +638,83 @@ nav {
     color: #28a745; /* Green for active shifts */
     font-weight: bold;
 }
+
+/* Expense Styles */
+.expense-form {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.expense-form input, .expense-form textarea {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.expense-form textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.expense-item {
+    background: var(--white);
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    margin-bottom: 10px;
+    border: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.expense-item h4 {
+    color: var(--dark-color);
+    margin-bottom: 5px;
+}
+
+.expense-item p {
+    color: var(--gray);
+    font-size: 14px;
+}
+
+.expense-item .expense-amount {
+    font-weight: bold;
+    color: var(--danger-color);
+}
+
+.expense-item-controls {
+    display: flex;
+    gap: 5px;
+}
+
+.expense-item-controls button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.delete-expense-btn {
+    background: var(--danger-color);
+    color: var(--white);
+}
+
+@media (max-width: 768px) {
+    .expense-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .expense-item-controls {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
