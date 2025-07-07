@@ -19,6 +19,7 @@ function initApp() {
     initSummaryTab();
     initStockTab();
     initShiftTab();
+    initExpensesTab();
 
     // Check if there's an active shift
     checkActiveShift();
@@ -60,6 +61,9 @@ function switchTab(tabId) {
             break;
         case 'shift':
             updateShiftDisplay();
+            break;
+        case 'expenses':
+            loadExpenses();
             break;
     }
 }
@@ -565,6 +569,9 @@ function initSummaryTab() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('start-date').value = today;
     document.getElementById('end-date').value = today;
+    
+    // Set up WhatsApp summary button
+    document.getElementById('whatsapp-summary-btn').addEventListener('click', sendWhatsAppDateSummary);
 }
 
 function loadSummary() {
@@ -689,13 +696,6 @@ function loadSummary() {
         </div>
     `;
 }
-
-// ====== PASTE THIS CODE IN YOUR script.js ======
-// WhatsApp Summary for Date Range
-document.getElementById('whatsapp-summary-btn').addEventListener('click', sendWhatsAppDateSummary);
-
-// WhatsApp Summary for Date Range - ENHANCED VERSION
-document.getElementById('whatsapp-summary-btn').addEventListener('click', sendWhatsAppDateSummary);
 
 function sendWhatsAppDateSummary() {
     const startDate = document.getElementById('start-date').value;
@@ -1091,7 +1091,7 @@ function startShift() {
         cashTotal: 0,
         momoTotal: 0,
         total: 0,
-        Cashier: cashierName,  // Changed from 'operator' to 'Cashier'
+        Cashier: cashierName,
         startingCash: startingCash
     };
 
@@ -1230,6 +1230,10 @@ function updateShiftDisplay() {
             });
         });
 
+        // Calculate total expenses
+        const expenses = getExpensesForShift(activeShift.id);
+        const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+
         // Format item breakdown table
         let itemsHtml = '';
         for (const [name, data] of Object.entries(itemBreakdown)) {
@@ -1259,6 +1263,8 @@ function updateShiftDisplay() {
                 <p><i class="fas fa-exchange-alt"></i> Transactions: ${activeShift.sales.length}</p>
                 <p><i class="fas fa-wallet"></i> Starting Cash: ${activeShift.startingCash || 0} RWF</p>
                 <p><i class="fas fa-undo"></i> Refunds: ${activeShift.refunds ? activeShift.refunds.length : 0}</p>
+                <p><i class="fas fa-receipt"></i> Expenses: ${totalExpenses} RWF</p>
+                <p><i class="fas fa-calculator"></i> Net Cash: ${(activeShift.startingCash || 0) + activeShift.cashTotal - totalExpenses} RWF</p>
                 
                 <h4><i class="fas fa-box-open"></i> Item Breakdown</h4>
                 <table class="summary-table">
@@ -1287,6 +1293,8 @@ function viewShiftDetails(shiftId) {
     
     const sales = getSales().filter(sale => shift.sales.includes(sale.id));
     const products = getProducts();
+    const expenses = getExpensesForShift(shift.id);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
     
     // Calculate item breakdown
     const itemBreakdown = {};
@@ -1296,7 +1304,7 @@ function viewShiftDetails(shiftId) {
                 itemBreakdown[item.name] = {
                     quantity: 0,
                     total: 0,
-                    price: item.price // Added price for WhatsApp summary
+                    price: item.price
                 };
             }
             itemBreakdown[item.name].quantity += item.quantity;
@@ -1317,6 +1325,8 @@ function viewShiftDetails(shiftId) {
         <p><i class="fas fa-exchange-alt"></i> Transactions: ${shift.sales.length}</p>
         ${shift.startingCash ? `<p><i class="fas fa-wallet"></i> Starting Cash: ${shift.startingCash} RWF</p>` : ''}
         <p><i class="fas fa-undo"></i> Refunds: ${shift.refunds ? shift.refunds.length : 0}</p>
+        <p><i class="fas fa-receipt"></i> Expenses: ${totalExpenses} RWF</p>
+        <p><i class="fas fa-calculator"></i> Net Cash: ${(shift.startingCash || 0) + shift.cashTotal - totalExpenses} RWF</p>
         
         <h4><i class="fas fa-box-open"></i> Item Breakdown</h4>
         <table class="summary-table">
@@ -1339,6 +1349,28 @@ function viewShiftDetails(shiftId) {
                 `).join('')}
             </tbody>
         </table>
+        
+        ${expenses.length > 0 ? `
+        <h4><i class="fas fa-receipt"></i> Expense Details</h4>
+        <table class="summary-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Amount</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${expenses.map(expense => `
+                    <tr>
+                        <td>${expense.name}</td>
+                        <td>${expense.amount} RWF</td>
+                        <td>${expense.notes || '-'}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        ` : ''}
         
         <div class="shift-detail-actions">
             <button id="whatsapp-shift-btn" class="btn">
@@ -1365,7 +1397,7 @@ function viewShiftDetails(shiftId) {
     
     // Add WhatsApp button functionality
     modal.querySelector('#whatsapp-shift-btn').addEventListener('click', () => {
-        generateWhatsAppShiftSummary(shift, itemBreakdown, products);
+        generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses);
     });
     
     // Add close handlers
@@ -1391,6 +1423,8 @@ function sendWhatsAppSummary() {
     const lastShift = shiftHistory[shiftHistory.length - 1];
     const sales = getSales().filter(sale => lastShift.sales.includes(sale.id));
     const products = getProducts();
+    const expenses = getExpensesForShift(lastShift.id);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
     
     // Calculate item breakdown
     const itemBreakdown = {};
@@ -1429,7 +1463,8 @@ function sendWhatsAppSummary() {
     message += `- 📱 MoMo: ${lastShift.momoTotal} RWF\n`;
     message += `*Total Sales:* ${lastShift.total} RWF\n`;
     message += `*Transactions:* ${lastShift.sales ? lastShift.sales.length : 0}\n`;
-    message += `*Refunds:* ${lastShift.refunds ? lastShift.refunds.length : 0}\n\n`;
+    message += `*Refunds:* ${lastShift.refunds ? lastShift.refunds.length : 0}\n`;
+    message += `*Expenses:* ${totalExpenses} RWF\n\n`;
     
     // Top 5 Sellers (only top 5)
     message += `🏆 *Top 5 Sellers*\n`;
@@ -1451,9 +1486,20 @@ function sendWhatsAppSummary() {
         message += `   - Stock Left: ${remainingStock}\n\n`;
     });
 
-    // Cash to deposit
-    const cashToDeposit = (lastShift.startingCash || 0) + lastShift.cashTotal;
-    message += `💰 *Cash to deposit:* ${cashToDeposit} RWF\n\n`;
+    // Expense details
+    if (expenses.length > 0) {
+        message += `📝 *Expense Details*\n`;
+        expenses.forEach(expense => {
+            message += `- ${expense.name}: ${expense.amount} RWF`;
+            if (expense.notes) message += ` (${expense.notes})`;
+            message += `\n`;
+        });
+        message += `\n`;
+    }
+
+    // Cash to deposit (after expenses)
+    const cashToDeposit = (lastShift.startingCash || 0) + lastShift.cashTotal - totalExpenses;
+    message += `💰 *Cash to deposit (after expenses):* ${cashToDeposit} RWF\n\n`;
     
     // Footer
     message += `_Report generated on ${formattedDate}, ${formattedTime}_`;
@@ -1463,9 +1509,10 @@ function sendWhatsAppSummary() {
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
 }
 
-// [PASTE THIS AFTER sendWhatsAppSummary() BUT BEFORE THE HELPER FUNCTIONS]
+function generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses) {
+    // Calculate total expenses
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
-function generateWhatsAppShiftSummary(shift, itemBreakdown, products) {
     // Sort items by quantity sold (descending)
     const sortedItems = Object.entries(itemBreakdown)
         .sort((a, b) => b[1].quantity - a[1].quantity);
@@ -1481,7 +1528,8 @@ function generateWhatsAppShiftSummary(shift, itemBreakdown, products) {
     message += `- Cash: ${shift.cashTotal} RWF\n`;
     message += `- MoMo: ${shift.momoTotal} RWF\n`;
     message += `*Transactions:* ${shift.sales.length}\n`;
-    message += `*Refunds:* ${shift.refunds ? shift.refunds.length : 0}\n\n`;
+    message += `*Refunds:* ${shift.refunds ? shift.refunds.length : 0}\n`;
+    message += `*Expenses:* ${totalExpenses} RWF\n\n`;
     
     // Item Breakdown
     message += `*Items Sold:*\n`;
@@ -1493,9 +1541,161 @@ function generateWhatsAppShiftSummary(shift, itemBreakdown, products) {
         message += `   - Total: ${data.total} RWF\n`;
     });
 
+    // Expense details
+    if (expenses.length > 0) {
+        message += `\n*Expense Details:*\n`;
+        expenses.forEach(expense => {
+            message += `- ${expense.name}: ${expense.amount} RWF`;
+            if (expense.notes) message += ` (${expense.notes})`;
+            message += `\n`;
+        });
+    }
+
+    // Cash to deposit (after expenses)
+    const cashToDeposit = (shift.startingCash || 0) + shift.cashTotal - totalExpenses;
+    message += `\n*Cash to deposit (after expenses):* ${cashToDeposit} RWF\n`;
+
     // Open WhatsApp
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+}
+
+// Expenses Tab Functions
+function initExpensesTab() {
+    // Set up add expense button
+    document.getElementById('add-expense-btn').addEventListener('click', () => {
+        const name = document.getElementById('expense-name').value.trim();
+        const amount = document.getElementById('expense-amount').value;
+        const notes = document.getElementById('expense-notes').value.trim();
+        
+        if (!name || !amount) {
+            alert('Please enter at least an expense name and amount!');
+            return;
+        }
+        
+        if (isNaN(amount)) {
+            alert('Amount must be a number!');
+            return;
+        }
+        
+        if (parseFloat(amount) <= 0) {
+            alert('Amount must be positive!');
+            return;
+        }
+        
+        addExpense(name, amount, notes);
+        loadExpenses();
+        
+        // Clear inputs
+        document.getElementById('expense-name').value = '';
+        document.getElementById('expense-amount').value = '';
+        document.getElementById('expense-notes').value = '';
+    });
+    
+    // Load expenses when tab is shown
+    document.querySelector('.tab-btn[data-tab="expenses"]').addEventListener('click', loadExpenses);
+}
+
+function loadExpenses() {
+    const expensesList = document.getElementById('expenses-list');
+    expensesList.innerHTML = '';
+    
+    const expenses = getExpenses().sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    if (expenses.length === 0) {
+        expensesList.innerHTML = '<p class="no-expenses">No expenses recorded yet.</p>';
+        return;
+    }
+    
+    expenses.forEach(expense => {
+        const expenseItem = document.createElement('div');
+        expenseItem.className = 'expense-item';
+        expenseItem.innerHTML = `
+            <div>
+                <h4>${expense.name}</h4>
+                <p>${new Date(expense.date).toLocaleString()}</p>
+                ${expense.notes ? `<p>${expense.notes}</p>` : ''}
+            </div>
+            <div>
+                <span class="expense-amount">-${expense.amount} RWF</span>
+                <div class="expense-item-controls">
+                    <button class="delete-expense-btn" data-id="${expense.id}">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        expensesList.appendChild(expenseItem);
+    });
+    
+    // Add event listeners to delete buttons
+    document.querySelectorAll('.delete-expense-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const expenseId = parseInt(e.currentTarget.getAttribute('data-id'));
+            if (confirm('Are you sure you want to delete this expense?')) {
+                deleteExpense(expenseId);
+                loadExpenses();
+            }
+        });
+    });
+}
+
+// Expense Data Functions
+function getExpenses() {
+    const expenses = localStorage.getItem('bakeryPosExpenses');
+    return expenses ? JSON.parse(expenses) : [];
+}
+
+function saveExpenses(expenses) {
+    localStorage.setItem('bakeryPosExpenses', JSON.stringify(expenses));
+}
+
+function addExpense(name, amount, notes = '') {
+    const expenses = getExpenses();
+    const activeShift = getActiveShift();
+    
+    const expense = {
+        id: Date.now(),
+        name: name,
+        amount: parseFloat(amount),
+        notes: notes,
+        date: new Date().toISOString(),
+        shiftId: activeShift ? activeShift.id : null
+    };
+    
+    expenses.push(expense);
+    saveExpenses(expenses);
+    
+    // If there's an active shift, add the expense to it
+    if (activeShift) {
+        if (!activeShift.expenses) activeShift.expenses = [];
+        activeShift.expenses.push(expense.id);
+        saveActiveShift(activeShift);
+    }
+    
+    return expense;
+}
+
+function deleteExpense(expenseId) {
+    const expenses = getExpenses();
+    const updatedExpenses = expenses.filter(expense => expense.id !== expenseId);
+    saveExpenses(updatedExpenses);
+    
+    // Also remove from active shift if it exists
+    const activeShift = getActiveShift();
+    if (activeShift && activeShift.expenses) {
+        const expenseIndex = activeShift.expenses.indexOf(expenseId);
+        if (expenseIndex !== -1) {
+            activeShift.expenses.splice(expenseIndex, 1);
+            saveActiveShift(activeShift);
+        }
+    }
+}
+
+function getExpensesForShift(shiftId) {
+    const expenses = getExpenses();
+    return expenses.filter(expense => expense.shiftId === shiftId);
 }
 
 // Helper function to format duration
@@ -1531,7 +1731,7 @@ function saveShiftHistory(history) {
             ...shift,
             date: shift.startTime.split('T')[0],
             duration: formatDuration(shift.startTime, shift.endTime),
-            operatorName: shift.Cashier || 'Cashier'  // Changed to use Cashier field
+            operatorName: shift.Cashier || 'Cashier'
         };
     });
     localStorage.setItem('bakeryPosShiftHistory', JSON.stringify(enhancedHistory));
