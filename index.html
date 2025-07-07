@@ -22,6 +22,8 @@
             <button class="tab-btn" data-tab="summary"><i class="fas fa-chart-bar"></i> Summary</button>
             <button class="tab-btn" data-tab="stock"><i class="fas fa-boxes"></i> Stock</button>
             <button class="tab-btn" data-tab="shift"><i class="fas fa-user-clock"></i> Shift</button>
+
+<button class="tab-btn" data-tab="expenses"><i class="fas fa-receipt"></i> Expenses</button>
         </nav>
 
         <main>
@@ -110,7 +112,20 @@
                     <button id="send-whatsapp-btn" class="btn"><i class="fab fa-whatsapp"></i> Send Summary via WhatsApp</button>
                 </div>
             </div>
-        </main>
+     <!-- Expenses Tab -->
+<div id="expenses" class="tab-content">
+    <h2><i class="fas fa-receipt"></i> Expense Tracking</h2>
+    <div class="expense-form">
+        <input type="text" id="expense-name" placeholder="Expense Name">
+        <input type="number" id="expense-amount" placeholder="Amount (RWF)" min="0">
+        <textarea id="expense-notes" placeholder="Notes (optional)"></textarea>
+        <button id="add-expense-btn" class="btn"><i class="fas fa-plus"></i> Add Expense</button>
+    </div>
+    <div id="expenses-list">
+        <!-- Expenses will be loaded here -->
+    </div>
+</div>
+   </main>
     </div>
 
     <!-- Receipt Modal -->
