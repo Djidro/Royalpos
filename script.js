@@ -1560,40 +1560,45 @@ function generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses) 
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
 }
 
-// Expenses Tab Functions
+// ======================
+// EXPENSES TAB FUNCTIONS
+// ======================
+
 function initExpensesTab() {
     // Set up add expense button
-    document.getElementById('add-expense-btn').addEventListener('click', () => {
-        const name = document.getElementById('expense-name').value.trim();
-        const amount = document.getElementById('expense-amount').value;
-        const notes = document.getElementById('expense-notes').value.trim();
-        
-        if (!name || !amount) {
-            alert('Please enter at least an expense name and amount!');
-            return;
-        }
-        
-        if (isNaN(amount)) {
-            alert('Amount must be a number!');
-            return;
-        }
-        
-        if (parseFloat(amount) <= 0) {
-            alert('Amount must be positive!');
-            return;
-        }
-        
-        addExpense(name, amount, notes);
-        loadExpenses();
-        
-        // Clear inputs
-        document.getElementById('expense-name').value = '';
-        document.getElementById('expense-amount').value = '';
-        document.getElementById('expense-notes').value = '';
-    });
+    document.getElementById('add-expense-btn').addEventListener('click', addExpenseHandler);
     
     // Load expenses when tab is shown
     document.querySelector('.tab-btn[data-tab="expenses"]').addEventListener('click', loadExpenses);
+}
+
+function addExpenseHandler() {
+    const name = document.getElementById('expense-name').value.trim();
+    const amount = document.getElementById('expense-amount').value;
+    const notes = document.getElementById('expense-notes').value.trim();
+    
+    // Check if this is a note-only expense (marked with @)
+    const isNoteOnly = name.startsWith('@') || amount.startsWith('@');
+    
+    if (isNoteOnly) {
+        // For note-only expenses, clean the @ symbol and store with amount 0
+        const cleanName = name.startsWith('@') ? name.substring(1).trim() : name;
+        addExpense(cleanName, 0, notes, true);
+    } else {
+        // Regular expense - validate amount if provided
+        if (amount && isNaN(amount)) {
+            alert('Amount must be a number!');
+            return;
+        }
+        addExpense(name, amount, notes, false);
+    }
+    
+    loadExpenses();
+    
+    // Clear inputs
+    document.getElementById('expense-name').value = '';
+    document.getElementById('expense-amount').value = '';
+    document.getElementById('expense-notes').value = '';
 }
 
 function loadExpenses() {
@@ -1609,20 +1614,21 @@ function loadExpenses() {
     
     expenses.forEach(expense => {
         const expenseItem = document.createElement('div');
-        expenseItem.className = 'expense-item';
+        expenseItem.className = `expense-item ${expense.noteOnly ? 'note-only' : ''}`;
+        
         expenseItem.innerHTML = `
-            <div>
-                <h4>${expense.name}</h4>
-                <p>${new Date(expense.date).toLocaleString()}</p>
-                ${expense.notes ? `<p>${expense.notes}</p>` : ''}
+            <div class="expense-info">
+                <h4>${expense.noteOnly ? '📝 ' : ''}${expense.name || 'No description'}</h4>
+                <p class="expense-date">${formatDateTime(expense.date)}</p>
+                ${expense.notes ? `<p class="expense-notes">${expense.notes}</p>` : ''}
             </div>
-            <div>
-                <span class="expense-amount">-${expense.amount} RWF</span>
-                <div class="expense-item-controls">
-                    <button class="delete-expense-btn" data-id="${expense.id}">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                </div>
+            <div class="expense-amount-section">
+                <span class="expense-amount ${expense.noteOnly ? 'note-amount' : ''}">
+                    ${expense.noteOnly ? '' : '-'}${expense.amount} RWF
+                </span>
+                <button class="delete-expense-btn" data-id="${expense.id}">
+                    <i class="fas fa-trash"></i>
+                </button>
             </div>
         `;
         
@@ -1641,7 +1647,10 @@ function loadExpenses() {
     });
 }
 
-// Expense Data Functions
+// ======================
+// EXPENSE DATA FUNCTIONS
+// ======================
+
 function getExpenses() {
     const expenses = localStorage.getItem('bakeryPosExpenses');
     return expenses ? JSON.parse(expenses) : [];
@@ -1651,24 +1660,25 @@ function saveExpenses(expenses) {
     localStorage.setItem('bakeryPosExpenses', JSON.stringify(expenses));
 }
 
-function addExpense(name, amount, notes = '') {
+function addExpense(name = "", amount = 0, notes = '', noteOnly = false) {
     const expenses = getExpenses();
     const activeShift = getActiveShift();
     
     const expense = {
         id: Date.now(),
         name: name,
-        amount: parseFloat(amount),
+        amount: noteOnly ? 0 : (parseFloat(amount) || 0),
         notes: notes,
         date: new Date().toISOString(),
-        shiftId: activeShift ? activeShift.id : null
+        shiftId: activeShift ? activeShift.id : null,
+        noteOnly: noteOnly // Flag for note-only expenses
     };
     
     expenses.push(expense);
     saveExpenses(expenses);
     
-    // If there's an active shift, add the expense to it
-    if (activeShift) {
+    // Only add to shift totals if it's a regular expense
+    if (activeShift && !noteOnly) {
         if (!activeShift.expenses) activeShift.expenses = [];
         activeShift.expenses.push(expense.id);
         saveActiveShift(activeShift);
@@ -1679,16 +1689,20 @@ function addExpense(name, amount, notes = '') {
 
 function deleteExpense(expenseId) {
     const expenses = getExpenses();
+    const expenseToDelete = expenses.find(e => e.id === expenseId);
     const updatedExpenses = expenses.filter(expense => expense.id !== expenseId);
+    
     saveExpenses(updatedExpenses);
     
-    // Also remove from active shift if it exists
-    const activeShift = getActiveShift();
-    if (activeShift && activeShift.expenses) {
-        const expenseIndex = activeShift.expenses.indexOf(expenseId);
-        if (expenseIndex !== -1) {
-            activeShift.expenses.splice(expenseIndex, 1);
-            saveActiveShift(activeShift);
+    // Remove from active shift if it exists and is a regular expense
+    if (expenseToDelete && !expenseToDelete.noteOnly) {
+        const activeShift = getActiveShift();
+        if (activeShift && activeShift.expenses) {
+            const expenseIndex = activeShift.expenses.indexOf(expenseId);
+            if (expenseIndex !== -1) {
+                activeShift.expenses.splice(expenseIndex, 1);
+                saveActiveShift(activeShift);
+            }
         }
     }
 }
@@ -1696,6 +1710,21 @@ function deleteExpense(expenseId) {
 function getExpensesForShift(shiftId) {
     const expenses = getExpenses();
     return expenses.filter(expense => expense.shiftId === shiftId);
+}
+
+// ======================
+// HELPER FUNCTIONS
+// ======================
+
+function formatDateTime(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleString([], {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
 }
 
 // Helper function to format duration
