@@ -718,3 +718,78 @@ nav {
         justify-content: flex-end;
     }
 }
+/* ===================== */
+/* EXPENSE ITEM STYLES */
+/* ===================== */
+
+.expense-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+}
+
+.expense-item:hover {
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+.expense-item.note-only {
+    background-color: #f8f9fa;
+    border-left: 4px solid #6c757d;
+}
+
+.expense-info {
+    flex: 1;
+}
+
+.expense-amount-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.expense-amount {
+    font-weight: bold;
+    color: #dc3545; /* Red for regular expenses */
+}
+
+.note-amount {
+    color: #6c757d; /* Gray for notes */
+    font-style: italic;
+}
+
+.expense-date {
+    color: #6c757d;
+    font-size: 0.85rem;
+    margin-top: 2px;
+}
+
+.expense-notes {
+    color: #495057;
+    font-size: 0.9rem;
+    margin-top: 4px;
+}
+
+.delete-expense-btn {
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: color 0.2s;
+}
+
+.delete-expense-btn:hover {
+    color: #dc3545;
+}
+
+.no-expenses {
+    text-align: center;
+    color: #6c757d;
+    padding: 20px;
+}
