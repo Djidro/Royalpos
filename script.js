@@ -1,3 +1,48 @@
+// Offline detection and handling
+function updateOnlineStatus() {
+    const statusElement = document.createElement('div');
+    statusElement.id = 'network-status';
+    statusElement.style.position = 'fixed';
+    statusElement.style.bottom = '10px';
+    statusElement.style.right = '10px';
+    statusElement.style.padding = '8px 15px';
+    statusElement.style.borderRadius = '20px';
+    statusElement.style.fontSize = '14px';
+    statusElement.style.zIndex = '1000';
+    
+    if (navigator.onLine) {
+        statusElement.textContent = 'Online';
+        statusElement.style.backgroundColor = '#2ecc71';
+        statusElement.style.color = 'white';
+    } else {
+        statusElement.textContent = 'Offline';
+        statusElement.style.backgroundColor = '#e74c3c';
+        statusElement.style.color = 'white';
+    }
+    
+    // Remove existing status if it exists
+    const existingStatus = document.getElementById('network-status');
+    if (existingStatus) {
+        existingStatus.remove();
+    }
+    
+    document.body.appendChild(statusElement);
+    
+    // Auto-hide after 3 seconds if online
+    if (navigator.onLine) {
+        setTimeout(() => {
+            statusElement.style.opacity = '0';
+            setTimeout(() => statusElement.remove(), 500);
+        }, 3000);
+    }
+}
+
+// Add event listeners for online/offline status
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+
+// Initial check
+updateOnlineStatus();
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize the app
     initApp();
@@ -698,38 +743,63 @@ function loadSummary() {
 }
 
 function sendWhatsAppDateSummary() {
+    // Check if offline
+    if (!navigator.onLine) {
+        if (confirm('You are offline. Copy the sales summary to clipboard instead?')) {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const sales = getSales().filter(sale => {
+                if (sale.refunded) return false;
+                const saleDate = sale.date.split('T')[0];
+                return (!startDate || saleDate >= startDate) && (!endDate || saleDate <= endDate);
+            });
+
+            // Calculate totals
+            const cashTotal = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.total, 0);
+            const momoTotal = sales.filter(s => s.paymentMethod === 'momo').reduce((sum, s) => sum + s.total, 0);
+            const grandTotal = cashTotal + momoTotal;
+
+            // Generate offline message
+            let message = `*Royal Bakes Sales Summary (Offline Copy)*\n\n`;
+            message += `📅 Date Range: ${startDate || 'Start'} to ${endDate || 'End'}\n\n`;
+            message += `📊 Summary\n`;
+            message += `• Transactions: ${sales.length}\n`;
+            message += `• Cash Total: ${cashTotal.toLocaleString()} RWF\n`;
+            message += `• MoMo Total: ${momoTotal.toLocaleString()} RWF\n`;
+            message += `• Grand Total: ${grandTotal.toLocaleString()} RWF\n\n`;
+            message += `_Connect to internet and paste this into WhatsApp_`;
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(message)
+                .then(() => alert('Summary copied! Paste into WhatsApp when online.'))
+                .catch(() => alert('Failed to copy. Please try again.'));
+        }
+        return;
+    }
+
+    // Original online functionality
     const startDate = document.getElementById('start-date').value;
     const endDate = document.getElementById('end-date').value;
-    const sales = getSales();
-    const products = getProducts();
-
-    // Filter sales by date range (exclude refunds)
-    const filteredSales = sales.filter(sale => {
+    const sales = getSales().filter(sale => {
         if (sale.refunded) return false;
         const saleDate = sale.date.split('T')[0];
         return (!startDate || saleDate >= startDate) && (!endDate || saleDate <= endDate);
     });
 
-    if (filteredSales.length === 0) {
+    if (sales.length === 0) {
         alert('No sales found for this date range!');
         return;
     }
 
     // Calculate totals
-    const cashTotal = filteredSales
-        .filter(sale => sale.paymentMethod === 'cash')
-        .reduce((sum, sale) => sum + sale.total, 0);
-
-    const momoTotal = filteredSales
-        .filter(sale => sale.paymentMethod === 'momo')
-        .reduce((sum, sale) => sum + sale.total, 0);
-
+    const cashTotal = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.total, 0);
+    const momoTotal = sales.filter(s => s.paymentMethod === 'momo').reduce((sum, s) => sum + s.total, 0);
     const grandTotal = cashTotal + momoTotal;
-    const transactionCount = filteredSales.length;
+    const transactionCount = sales.length;
 
     // Calculate item breakdown
     const itemBreakdown = {};
-    filteredSales.forEach(sale => {
+    sales.forEach(sale => {
         sale.items.forEach(item => {
             if (!itemBreakdown[item.name]) {
                 itemBreakdown[item.name] = {
@@ -743,30 +813,30 @@ function sendWhatsAppDateSummary() {
         });
     });
 
-    // Sort items by quantity sold (best sellers first)
+    // Sort items by quantity sold
     const sortedItems = Object.entries(itemBreakdown).sort((a, b) => b[1].quantity - a[1].quantity);
 
     // Format WhatsApp message
     let message = `*Royal Bakes Sales Summary*\n\n`;
-    message += `📅 *Date Range:* ${startDate || 'Start'} to ${endDate || 'End'}\n\n`;
+    message += `📅 Date Range: ${startDate || 'Start'} to ${endDate || 'End'}\n\n`;
     
     // Summary Section
-    message += `📊 *Summary*\n`;
+    message += `📊 Summary\n`;
     message += `• Transactions: ${transactionCount}\n`;
     message += `• Cash Total: ${cashTotal.toLocaleString()} RWF\n`;
     message += `• MoMo Total: ${momoTotal.toLocaleString()} RWF\n`;
     message += `• Grand Total: ${grandTotal.toLocaleString()} RWF\n\n`;
     
     // Top-Selling Items (Top 3)
-    message += `🏆 *Top Sellers*\n`;
+    message += `🏆 Top Sellers\n`;
     sortedItems.slice(0, 3).forEach(([name, data], index) => {
         message += `${index + 1}. ${name} (${data.quantity} sold)\n`;
     });
     
     // Full Item Breakdown
-    message += `\n🛒 *Item Breakdown*\n`;
+    message += `\n🛒 Item Breakdown\n`;
     sortedItems.forEach(([name, data]) => {
-        const product = products.find(p => p.name === name);
+        const product = getProducts().find(p => p.name === name);
         const remainingStock = product ? 
             (product.quantity === 'unlimited' ? '∞' : product.quantity) : 'N/A';
         
@@ -1414,18 +1484,47 @@ function viewShiftDetails(shiftId) {
 }
 
 function sendWhatsAppSummary() {
-    const shiftHistory = getShiftHistory();
-    if (shiftHistory.length === 0) {
-        alert('No shift history found!');
+    // Check if offline
+    if (!navigator.onLine) {
+        if (confirm('You are offline. Would you like to copy the shift summary to clipboard instead?')) {
+            const lastShift = getShiftHistory()[getShiftHistory().length - 1];
+            const sales = getSales().filter(sale => lastShift.sales.includes(sale.id));
+            const products = getProducts();
+            const expenses = getExpensesForShift(lastShift.id);
+            const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+            // Generate the message
+            let message = `*Royal Bakes Shift Summary*\n\n`;
+            message += `*Shift ID:* ${lastShift.id}\n`;
+            message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n`;
+            message += `*Date:* ${new Date(lastShift.startTime).toLocaleDateString()}\n`;
+            message += `*Duration:* ${formatDuration(lastShift.startTime, lastShift.endTime)}\n\n`;
+            
+            message += `*Sales Total:* ${lastShift.total} RWF\n`;
+            message += `- Cash: ${lastShift.cashTotal} RWF\n`;
+            message += `- MoMo: ${lastShift.momoTotal} RWF\n`;
+            message += `*Transactions:* ${lastShift.sales.length}\n`;
+            message += `*Expenses:* ${totalExpenses} RWF\n\n`;
+            
+            message += `_Report generated offline - paste into WhatsApp when connection returns_`;
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(message).then(() => {
+                alert('Shift summary copied to clipboard!\n\nYou can paste it into WhatsApp when you have internet.');
+            }).catch(err => {
+                alert('Failed to copy. Please try again or check permissions.');
+            });
+        }
         return;
     }
 
-    const lastShift = shiftHistory[shiftHistory.length - 1];
+    // Original online WhatsApp code continues here...
+    const lastShift = getShiftHistory()[getShiftHistory().length - 1];
     const sales = getSales().filter(sale => lastShift.sales.includes(sale.id));
     const products = getProducts();
     const expenses = getExpensesForShift(lastShift.id);
     const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    
+
     // Calculate item breakdown
     const itemBreakdown = {};
     sales.forEach(sale => {
@@ -1442,67 +1541,30 @@ function sendWhatsAppSummary() {
         });
     });
 
-    // Sort items by quantity sold (descending)
+    // Sort items by quantity sold
     const sortedItems = Object.entries(itemBreakdown)
         .sort((a, b) => b[1].quantity - a[1].quantity);
 
-    // Format summary message
-    const now = new Date();
-    const formattedDate = now.toLocaleDateString('en-GB');
-    const formattedTime = now.toLocaleTimeString('en-GB');
-    
-    let message = `*Bakery Shift Summary*\n\n`;
-    message += `*Date:* ${lastShift.date}\n`;
+    // Format WhatsApp message
+    let message = `*Royal Bakes Shift Summary*\n\n`;
+    message += `*Shift ID:* ${lastShift.id}\n`;
     message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n`;
-    message += `*Start Time:* ${new Date(lastShift.startTime).toLocaleTimeString('en-GB', {hour12: false})}\n`;
-    message += `*End Time:* ${new Date(lastShift.endTime).toLocaleTimeString('en-GB', {hour12: false})}\n`;
-    message += `*Duration:* ${lastShift.duration}\n\n`;
+    message += `*Started:* ${new Date(lastShift.startTime).toLocaleString()}\n`;
+    message += `*Ended:* ${new Date(lastShift.endTime).toLocaleString()}\n`;
+    message += `*Duration:* ${formatDuration(lastShift.startTime, lastShift.endTime)}\n\n`;
     
-    message += `*Starting Cash:* ${lastShift.startingCash || 0} RWF\n`;
-    message += `- 💵 Cash: ${lastShift.cashTotal} RWF\n`;
-    message += `- 📱 MoMo: ${lastShift.momoTotal} RWF\n`;
     message += `*Total Sales:* ${lastShift.total} RWF\n`;
-    message += `*Transactions:* ${lastShift.sales ? lastShift.sales.length : 0}\n`;
+    message += `- Cash: ${lastShift.cashTotal} RWF\n`;
+    message += `- MoMo: ${lastShift.momoTotal} RWF\n`;
+    message += `*Transactions:* ${lastShift.sales.length}\n`;
     message += `*Refunds:* ${lastShift.refunds ? lastShift.refunds.length : 0}\n`;
     message += `*Expenses:* ${totalExpenses} RWF\n\n`;
     
-    // Top 5 Sellers (only top 5)
-    message += `🏆 *Top 5 Sellers*\n`;
+    // Top 5 items
+    message += `🏆 *Top 5 Items*\n`;
     sortedItems.slice(0, 5).forEach(([name, data], index) => {
-        message += `${index + 1}. ${name} : ${data.quantity} sold\n`;
+        message += `${index + 1}. ${name}: ${data.quantity} × ${data.price} RWF = ${data.total} RWF\n`;
     });
-    
-    // Full Item Breakdown (all items)
-    message += `\n🛒 *All Items Sold*\n\n`;
-    sortedItems.forEach(([name, data]) => {
-        const product = products.find(p => p.name === name);
-        const remainingStock = product ? 
-            (product.quantity === 'unlimited' ? '∞' : product.quantity) : 'N/A';
-        
-        message += `➤ ${name}\n`;
-        message += `   - Sold: ${data.quantity}\n`;
-        message += `   - Price: ${data.price} RWF\n`;
-        message += `   - Total: ${data.total} RWF\n`;
-        message += `   - Stock Left: ${remainingStock}\n\n`;
-    });
-
-    // Expense details
-    if (expenses.length > 0) {
-        message += `📝 *Expense Details*\n`;
-        expenses.forEach(expense => {
-            message += `- ${expense.name}: ${expense.amount} RWF`;
-            if (expense.notes) message += ` (${expense.notes})`;
-            message += `\n`;
-        });
-        message += `\n`;
-    }
-
-    // Cash to deposit (after expenses)
-    const cashToDeposit = (lastShift.startingCash || 0) + lastShift.cashTotal - totalExpenses;
-    message += `💰 *Cash to deposit (after expenses):* ${cashToDeposit} RWF\n\n`;
-    
-    // Footer
-    message += `_Report generated on ${formattedDate}, ${formattedTime}_`;
 
     // Open WhatsApp
     const encodedMessage = encodeURIComponent(message);
@@ -1510,50 +1572,52 @@ function sendWhatsAppSummary() {
 }
 
 function generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses) {
-    // Calculate total expenses
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    if (!navigator.onLine) {
+        if (confirm('Offline - Copy shift details to clipboard?')) {
+            const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+            
+            let message = `*Shift Details #${shift.id}*\n\n`;
+            message += `*Cashier:* ${shift.Cashier || 'Cashier'}\n`;
+            message += `*Duration:* ${formatDuration(shift.startTime, shift.endTime)}\n`;
+            message += `*Total Sales:* ${shift.total} RWF\n\n`;
+            
+            // Item breakdown
+            message += `*Items Sold:*\n`;
+            Object.entries(itemBreakdown).forEach(([name, data]) => {
+                message += `- ${name}: ${data.quantity} × ${data.price} RWF\n`;
+            });
+            
+            message += `\n_Available to paste into WhatsApp when online_`;
 
-    // Sort items by quantity sold (descending)
+            navigator.clipboard.writeText(message)
+                .then(() => alert('Shift details copied!'))
+                .catch(() => alert('Failed to copy.'));
+        }
+        return;
+    }
+
+    // Original online code
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
     const sortedItems = Object.entries(itemBreakdown)
         .sort((a, b) => b[1].quantity - a[1].quantity);
 
-    // Format summary message
-    let message = `*Shift Summary #${shift.id}*\n\n`;
+    let message = `*Shift Details #${shift.id}*\n\n`;
     message += `*Cashier:* ${shift.Cashier || 'Cashier'}\n`;
     message += `*Started:* ${new Date(shift.startTime).toLocaleString()}\n`;
-    message += `*Ended:* ${shift.endTime ? new Date(shift.endTime).toLocaleString() : 'Still active'}\n`;
-    message += `*Duration:* ${shift.endTime ? formatDuration(shift.startTime, shift.endTime) : 'Ongoing'}\n\n`;
+    message += `*Ended:* ${new Date(shift.endTime).toLocaleString()}\n`;
+    message += `*Duration:* ${formatDuration(shift.startTime, shift.endTime)}\n\n`;
     
     message += `*Total Sales:* ${shift.total} RWF\n`;
     message += `- Cash: ${shift.cashTotal} RWF\n`;
-    message += `- MoMo: ${shift.momoTotal} RWF\n`;
-    message += `*Transactions:* ${shift.sales.length}\n`;
-    message += `*Refunds:* ${shift.refunds ? shift.refunds.length : 0}\n`;
-    message += `*Expenses:* ${totalExpenses} RWF\n\n`;
+    message += `- MoMo: ${shift.momoTotal} RWF\n\n`;
     
-    // Item Breakdown
     message += `*Items Sold:*\n`;
     sortedItems.forEach(([name, data]) => {
-        const product = products.find(p => p.name === name);
         message += `\n➤ ${name}\n`;
         message += `   - Qty: ${data.quantity}\n`;
         message += `   - Price: ${data.price} RWF\n`;
         message += `   - Total: ${data.total} RWF\n`;
     });
-
-    // Expense details
-    if (expenses.length > 0) {
-        message += `\n*Expense Details:*\n`;
-        expenses.forEach(expense => {
-            message += `- ${expense.name}: ${expense.amount} RWF`;
-            if (expense.notes) message += ` (${expense.notes})`;
-            message += `\n`;
-        });
-    }
-
-    // Cash to deposit (after expenses)
-    const cashToDeposit = (shift.startingCash || 0) + shift.cashTotal - totalExpenses;
-    message += `\n*Cash to deposit (after expenses):* ${cashToDeposit} RWF\n`;
 
     // Open WhatsApp
     const encodedMessage = encodeURIComponent(message);
