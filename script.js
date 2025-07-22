@@ -743,41 +743,6 @@ function loadSummary() {
 }
 
 function sendWhatsAppDateSummary() {
-    // Check if offline
-    if (!navigator.onLine) {
-        if (confirm('You are offline. Copy the sales summary to clipboard instead?')) {
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
-            const sales = getSales().filter(sale => {
-                if (sale.refunded) return false;
-                const saleDate = sale.date.split('T')[0];
-                return (!startDate || saleDate >= startDate) && (!endDate || saleDate <= endDate);
-            });
-
-            // Calculate totals
-            const cashTotal = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.total, 0);
-            const momoTotal = sales.filter(s => s.paymentMethod === 'momo').reduce((sum, s) => sum + s.total, 0);
-            const grandTotal = cashTotal + momoTotal;
-
-            // Generate offline message
-            let message = `*Royal Bakes Sales Summary (Offline Copy)*\n\n`;
-            message += `📅 Date Range: ${startDate || 'Start'} to ${endDate || 'End'}\n\n`;
-            message += `📊 Summary\n`;
-            message += `• Transactions: ${sales.length}\n`;
-            message += `• Cash Total: ${cashTotal.toLocaleString()} RWF\n`;
-            message += `• MoMo Total: ${momoTotal.toLocaleString()} RWF\n`;
-            message += `• Grand Total: ${grandTotal.toLocaleString()} RWF\n\n`;
-            message += `_Connect to internet and paste this into WhatsApp_`;
-
-            // Copy to clipboard
-            navigator.clipboard.writeText(message)
-                .then(() => alert('Summary copied! Paste into WhatsApp when online.'))
-                .catch(() => alert('Failed to copy. Please try again.'));
-        }
-        return;
-    }
-
-    // Original online functionality
     const startDate = document.getElementById('start-date').value;
     const endDate = document.getElementById('end-date').value;
     const sales = getSales().filter(sale => {
@@ -795,59 +760,60 @@ function sendWhatsAppDateSummary() {
     const cashTotal = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.total, 0);
     const momoTotal = sales.filter(s => s.paymentMethod === 'momo').reduce((sum, s) => sum + s.total, 0);
     const grandTotal = cashTotal + momoTotal;
-    const transactionCount = sales.length;
 
     // Calculate item breakdown
     const itemBreakdown = {};
     sales.forEach(sale => {
         sale.items.forEach(item => {
             if (!itemBreakdown[item.name]) {
-                itemBreakdown[item.name] = {
-                    quantity: 0,
-                    total: 0,
-                    price: item.price
-                };
+                itemBreakdown[item.name] = 0;
             }
-            itemBreakdown[item.name].quantity += item.quantity;
-            itemBreakdown[item.name].total += item.quantity * item.price;
+            itemBreakdown[item.name] += item.quantity;
         });
     });
 
-    // Sort items by quantity sold
-    const sortedItems = Object.entries(itemBreakdown).sort((a, b) => b[1].quantity - a[1].quantity);
+    // Sort items by quantity sold (top 5)
+    const sortedItems = Object.entries(itemBreakdown)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
 
     // Format WhatsApp message
-    let message = `*Royal Bakes Sales Summary*\n\n`;
-    message += `📅 Date Range: ${startDate || 'Start'} to ${endDate || 'End'}\n\n`;
+    let message = `📅 POS Date Range Summary\n\n`;
+    message += `📆 Date Range: ${startDate} to ${endDate}\n\n`;
     
-    // Summary Section
-    message += `📊 Summary\n`;
-    message += `• Transactions: ${transactionCount}\n`;
-    message += `• Cash Total: ${cashTotal.toLocaleString()} RWF\n`;
-    message += `• MoMo Total: ${momoTotal.toLocaleString()} RWF\n`;
-    message += `• Grand Total: ${grandTotal.toLocaleString()} RWF\n\n`;
+    // Sales Overview
+    message += `💰 *Sales Overview*\n`;
+    message += `• Total Cash: ${cashTotal} RWF\n`;
+    message += `• Total MoMo: ${momoTotal} RWF\n`;
+    message += `• Grand Total: ${grandTotal} RWF\n\n`;
     
-    // Top-Selling Items (Top 3)
-    message += `🏆 Top Sellers\n`;
-    sortedItems.slice(0, 3).forEach(([name, data], index) => {
-        message += `${index + 1}. ${name} (${data.quantity} sold)\n`;
+    // Top 5 Items
+    message += `🏆 *Top 5 Items*\n`;
+    sortedItems.forEach(([name, quantity], index) => {
+        message += `${index + 1}. ${name}: ${quantity} sold\n`;
     });
+    message += `\n`;
     
-    // Full Item Breakdown
-    message += `\n🛒 Item Breakdown\n`;
-    sortedItems.forEach(([name, data]) => {
+    // All Items
+    message += `🛒 *All Items Sold*\n`;
+    Object.entries(itemBreakdown).forEach(([name, quantity]) => {
         const product = getProducts().find(p => p.name === name);
-        const remainingStock = product ? 
-            (product.quantity === 'unlimited' ? '∞' : product.quantity) : 'N/A';
-        
-        message += `\n➤ ${name}\n`;
-        message += `   - Sold: ${data.quantity}\n`;
-        message += `   - Price: ${data.price.toLocaleString()} RWF\n`;
-        message += `   - Total: ${data.total.toLocaleString()} RWF\n`;
-        message += `   - Stock Left: ${remainingStock}\n`;
+        message += `• ${name}\n`;
+        message += `   - Sold: ${quantity}\n`;
+        if (product && product.quantity !== 'unlimited') {
+            message += `   - Stock Left: ${product.quantity}\n`;
+        }
     });
 
-    message += `\n_Generated by Royal Bakes POS_`;
+    // Handle offline case
+    if (!navigator.onLine) {
+        if (confirm('You are offline. Copy to clipboard instead?')) {
+            navigator.clipboard.writeText(message)
+                .then(() => alert('Report copied! Paste into WhatsApp when online.'))
+                .catch(() => alert('Failed to copy.'));
+        }
+        return;
+    }
 
     // Open WhatsApp
     const encodedMessage = encodeURIComponent(message);
@@ -1484,48 +1450,20 @@ function viewShiftDetails(shiftId) {
 }
 
 function sendWhatsAppSummary() {
-    // Check if offline
-    if (!navigator.onLine) {
-        if (confirm('You are offline. Would you like to copy the shift summary to clipboard instead?')) {
-            const lastShift = getShiftHistory()[getShiftHistory().length - 1];
-            const sales = getSales().filter(sale => lastShift.sales.includes(sale.id));
-            const products = getProducts();
-            const expenses = getExpensesForShift(lastShift.id);
-            const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-
-            // Generate the message
-            let message = `*Royal Bakes Shift Summary*\n\n`;
-            message += `*Shift ID:* ${lastShift.id}\n`;
-            message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n`;
-            message += `*Date:* ${new Date(lastShift.startTime).toLocaleDateString()}\n`;
-            message += `*Duration:* ${formatDuration(lastShift.startTime, lastShift.endTime)}\n\n`;
-            
-            message += `*Sales Total:* ${lastShift.total} RWF\n`;
-            message += `- Cash: ${lastShift.cashTotal} RWF\n`;
-            message += `- MoMo: ${lastShift.momoTotal} RWF\n`;
-            message += `*Transactions:* ${lastShift.sales.length}\n`;
-            message += `*Expenses:* ${totalExpenses} RWF\n\n`;
-            
-            message += `_Report generated offline - paste into WhatsApp when connection returns_`;
-
-            // Copy to clipboard
-            navigator.clipboard.writeText(message).then(() => {
-                alert('Shift summary copied to clipboard!\n\nYou can paste it into WhatsApp when you have internet.');
-            }).catch(err => {
-                alert('Failed to copy. Please try again or check permissions.');
-            });
-        }
+    const lastShift = getShiftHistory()[getShiftHistory().length - 1];
+    if (!lastShift) {
+        alert('No shift history found!');
         return;
     }
 
-    // Original online WhatsApp code continues here...
-    const lastShift = getShiftHistory()[getShiftHistory().length - 1];
+    // Calculate duration
+    const duration = formatDuration(lastShift.startTime, lastShift.endTime);
+    
+    // Get sales data
     const sales = getSales().filter(sale => lastShift.sales.includes(sale.id));
     const products = getProducts();
-    const expenses = getExpensesForShift(lastShift.id);
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-
-    // Calculate item breakdown
+    
+    // Calculate item breakdown with price and total
     const itemBreakdown = {};
     sales.forEach(sale => {
         sale.items.forEach(item => {
@@ -1541,30 +1479,81 @@ function sendWhatsAppSummary() {
         });
     });
 
-    // Sort items by quantity sold
+    // Sort items by quantity sold (top 5)
     const sortedItems = Object.entries(itemBreakdown)
         .sort((a, b) => b[1].quantity - a[1].quantity);
 
-    // Format WhatsApp message
-    let message = `*Royal Bakes Shift Summary*\n\n`;
-    message += `*Shift ID:* ${lastShift.id}\n`;
-    message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n`;
-    message += `*Started:* ${new Date(lastShift.startTime).toLocaleString()}\n`;
-    message += `*Ended:* ${new Date(lastShift.endTime).toLocaleString()}\n`;
-    message += `*Duration:* ${formatDuration(lastShift.startTime, lastShift.endTime)}\n\n`;
+    // Get expenses
+    const expenses = getExpensesForShift(lastShift.id);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
     
+    // Calculate cash to deposit
+    const cashToDeposit = (lastShift.startingCash || 0) + lastShift.cashTotal - totalExpenses;
+
+    // Format WhatsApp message
+    let message = `*Shift Summary*\n\n`;
+    
+    // Header Info
+    message += `*Date:* ${new Date(lastShift.startTime).toISOString().split('T')[0]}\n`;
+    message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n`;
+    message += `*Start Time:* ${new Date(lastShift.startTime).toTimeString().split(' ')[0]}\n`;
+    message += `*End Time:* ${new Date(lastShift.endTime).toTimeString().split(' ')[0]}\n`;
+    message += `*Duration:* ${duration}\n\n`;
+    
+    // Sales Overview
+    message += `*Starting Cash:* ${lastShift.startingCash || 0} RWF\n`;
+    message += `- � Cash: ${lastShift.cashTotal} RWF\n`;
+    message += `- � MoMo: ${lastShift.momoTotal} RWF\n`;
     message += `*Total Sales:* ${lastShift.total} RWF\n`;
-    message += `- Cash: ${lastShift.cashTotal} RWF\n`;
-    message += `- MoMo: ${lastShift.momoTotal} RWF\n`;
     message += `*Transactions:* ${lastShift.sales.length}\n`;
     message += `*Refunds:* ${lastShift.refunds ? lastShift.refunds.length : 0}\n`;
     message += `*Expenses:* ${totalExpenses} RWF\n\n`;
     
-    // Top 5 items
-    message += `🏆 *Top 5 Items*\n`;
+    // Top 5 Sellers
+    message += `� *Top 5 Sellers*\n`;
     sortedItems.slice(0, 5).forEach(([name, data], index) => {
-        message += `${index + 1}. ${name}: ${data.quantity} × ${data.price} RWF = ${data.total} RWF\n`;
+        message += `${index + 1}. ${name} : ${data.quantity} sold\n`;
     });
+    message += `\n`;
+    
+    // All Items Sold
+    message += `� *All Items Sold*\n\n`;
+    sortedItems.forEach(([name, data]) => {
+        const product = products.find(p => p.name === name);
+        message += `➤ ${name}\n`;
+        message += `   - Sold: ${data.quantity}\n`;
+        message += `   - Price: ${data.price} RWF\n`;
+        message += `   - Total: ${data.total} RWF\n`;
+        if (product && product.quantity !== 'unlimited') {
+            message += `   - Stock Left: ${product.quantity}\n`;
+        }
+        message += `\n`;
+    });
+
+    // Expense Details
+    if (expenses.length > 0) {
+        message += `� *Expense Details*\n`;
+        expenses.forEach(expense => {
+            message += `- ${expense.name}: ${expense.amount} RWF\n`;
+        });
+        message += `\n`;
+    }
+
+    // Cash to deposit
+    message += `� *Cash to deposit (after expenses):* ${cashToDeposit} RWF\n\n`;
+
+    // Footer
+    message += `_Report generated on ${new Date().toLocaleDateString()}, ${new Date().toLocaleTimeString()}_`;
+
+    // Handle offline case
+    if (!navigator.onLine) {
+        if (confirm('You are offline. Copy to clipboard instead?')) {
+            navigator.clipboard.writeText(message)
+                .then(() => alert('Report copied! Paste into WhatsApp when online.'))
+                .catch(() => alert('Failed to copy.'));
+        }
+        return;
+    }
 
     // Open WhatsApp
     const encodedMessage = encodeURIComponent(message);
