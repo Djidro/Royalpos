@@ -1,17 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; media-src *; img-src 'self' data: content:;">
-    <title>ROYAL BAKES POS</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data: blob:; connect-src 'self' https://cdnjs.cloudflare.com">
+    <title>Royal Bakes POS</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#e67e22">
     <link rel="stylesheet" href="style.css">
+    <!-- Preconnect to CDN for faster loading -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Fallback for offline -->
+    <noscript>
+        <link rel="stylesheet" href="css/font-awesome-fallback.css">
+    </noscript>
 </head>
 <body>
+    <!-- [Rest of your existing HTML body content remains exactly the same] -->
+</body>
+</html>
     <div class="container">
         <header>
             <h1><i class="fas fa-bread-slice"></i>Royal bakes</h1>
