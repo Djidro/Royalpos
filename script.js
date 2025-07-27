@@ -1479,7 +1479,7 @@ function sendWhatsAppSummary() {
         });
     });
 
-    // Sort items by quantity sold (top 5)
+    // Sort items by quantity sold
     const sortedItems = Object.entries(itemBreakdown)
         .sort((a, b) => b[1].quantity - a[1].quantity);
 
@@ -1495,55 +1495,30 @@ function sendWhatsAppSummary() {
     
     // Header Info
     message += `*Date:* ${new Date(lastShift.startTime).toISOString().split('T')[0]}\n`;
-    message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n`;
-    message += `*Start Time:* ${new Date(lastShift.startTime).toTimeString().split(' ')[0]}\n`;
-    message += `*End Time:* ${new Date(lastShift.endTime).toTimeString().split(' ')[0]}\n`;
-    message += `*Duration:* ${duration}\n\n`;
+    message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n\n`;
     
     // Sales Overview
-    message += `*Starting Cash:* ${lastShift.startingCash || 0} RWF\n`;
-    message += `- � Cash: ${lastShift.cashTotal} RWF\n`;
-    message += `- � MoMo: ${lastShift.momoTotal} RWF\n`;
     message += `*Total Sales:* ${lastShift.total} RWF\n`;
-    message += `*Transactions:* ${lastShift.sales.length}\n`;
-    message += `*Refunds:* ${lastShift.refunds ? lastShift.refunds.length : 0}\n`;
-    message += `*Expenses:* ${totalExpenses} RWF\n\n`;
+    message += `- Cash: ${lastShift.cashTotal} RWF\n`;
+    message += `- MoMo: ${lastShift.momoTotal} RWF\n`;
+    message += `*Transactions:* ${lastShift.sales.length}\n\n`;
     
-    // Top 5 Sellers
-    message += `� *Top 5 Sellers*\n`;
-    sortedItems.slice(0, 5).forEach(([name, data], index) => {
-        message += `${index + 1}. ${name} : ${data.quantity} sold\n`;
-    });
-    message += `\n`;
-    
-    // All Items Sold
-    message += `� *All Items Sold*\n\n`;
-    sortedItems.forEach(([name, data]) => {
-        const product = products.find(p => p.name === name);
-        message += `➤ ${name}\n`;
-        message += `   - Sold: ${data.quantity}\n`;
-        message += `   - Price: ${data.price} RWF\n`;
-        message += `   - Total: ${data.total} RWF\n`;
-        if (product && product.quantity !== 'unlimited') {
-            message += `   - Stock Left: ${product.quantity}\n`;
+    // Expenses with notes - only show notes here, no additional notes section
+    message += `*Expenses:* ${totalExpenses} RWF\n`;
+    expenses.forEach(expense => {
+        message += `- ${expense.name}: ${expense.amount} RWF`;
+        if (expense.notes) {
+            message += `\n  ${expense.notes}`;
         }
         message += `\n`;
     });
-
-    // Expense Details
-    if (expenses.length > 0) {
-        message += `� *Expense Details*\n`;
-        expenses.forEach(expense => {
-            message += `- ${expense.name}: ${expense.amount} RWF\n`;
-        });
-        message += `\n`;
-    }
-
+    message += `\n`;
+    
     // Cash to deposit
-    message += `� *Cash to deposit (after expenses):* ${cashToDeposit} RWF\n\n`;
+    message += `*Cash to deposit (after expenses):* ${cashToDeposit} RWF\n\n`;
 
     // Footer
-    message += `_Report generated on ${new Date().toLocaleDateString()}, ${new Date().toLocaleTimeString()}_`;
+    message += `_Report generated on ${new Date().toLocaleString()}_`;
 
     // Handle offline case
     if (!navigator.onLine) {
@@ -1559,78 +1534,6 @@ function sendWhatsAppSummary() {
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
 }
-
-// Update the generateWhatsAppShiftSummary function to include all notes
-function generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses) {
-    if (!navigator.onLine) {
-        if (confirm('Offline - Copy shift details to clipboard?')) {
-            const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-            
-            let message = `*Shift Details #${shift.id}*\n\n`;
-            message += `*Cashier:* ${shift.Cashier || 'Cashier'}\n`;
-            message += `*Duration:* ${formatDuration(shift.startTime, shift.endTime)}\n`;
-            message += `*Total Sales:* ${shift.total} RWF\n\n`;
-            
-            // Item breakdown
-            message += `*Items Sold:*\n`;
-            Object.entries(itemBreakdown).forEach(([name, data]) => {
-                message += `- ${name}: ${data.quantity} × ${data.price} RWF\n`;
-            });
-            
-            // Include all notes in the report
-            const allNotes = getExpensesForShift(shift.id)
-                .filter(e => e.notes)
-                .map(e => `• ${e.notes} (${formatDateTime(e.date)})`);
-            
-            if (allNotes.length > 0) {
-                message += `\n*Notes & Comments:*\n${allNotes.join('\n')}\n`;
-            }
-            
-            message += `\n_Available to paste into WhatsApp when online_`;
-
-            navigator.clipboard.writeText(message)
-                .then(() => alert('Shift details copied!'))
-                .catch(() => alert('Failed to copy.'));
-        }
-        return;
-    }
-
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const sortedItems = Object.entries(itemBreakdown)
-        .sort((a, b) => b[1].quantity - a[1].quantity);
-
-    let message = `*Shift Details #${shift.id}*\n\n`;
-    message += `*Cashier:* ${shift.Cashier || 'Cashier'}\n`;
-    message += `*Started:* ${new Date(shift.startTime).toLocaleString()}\n`;
-    message += `*Ended:* ${new Date(shift.endTime).toLocaleString()}\n`;
-    message += `*Duration:* ${formatDuration(shift.startTime, shift.endTime)}\n\n`;
-    
-    message += `*Total Sales:* ${shift.total} RWF\n`;
-    message += `- Cash: ${shift.cashTotal} RWF\n`;
-    message += `- MoMo: ${shift.momoTotal} RWF\n\n`;
-    
-    message += `*Items Sold:*\n`;
-    sortedItems.forEach(([name, data]) => {
-        message += `\n➤ ${name}\n`;
-        message += `   - Qty: ${data.quantity}\n`;
-        message += `   - Price: ${data.price} RWF\n`;
-        message += `   - Total: ${data.total} RWF\n`;
-    });
-
-    // Get all notes from expenses (both regular and note-only)
-    const allNotes = getExpensesForShift(shift.id)
-        .filter(e => e.notes)
-        .map(e => `• ${e.notes} (${formatDateTime(e.date)})`);
-    
-    if (allNotes.length > 0) {
-        message += `\n*Notes & Comments:*\n${allNotes.join('\n')}\n`;
-    }
-
-    // Open WhatsApp
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
-}
-
 // Update the sendWhatsAppSummary function to include notes
 function sendWhatsAppSummary() {
     const lastShift = getShiftHistory()[getShiftHistory().length - 1];
@@ -1726,14 +1629,7 @@ function sendWhatsAppSummary() {
     }
 
     // Include all notes (both from expenses and note-only entries)
-    const allNotes = getExpensesForShift(lastShift.id)
-        .filter(e => e.notes && (e.noteOnly || e.amount === 0))
-        .map(e => `• ${e.notes} (${formatDateTime(e.date)})`);
-    
-    if (allNotes.length > 0) {
-        message += `*Additional Notes:*\n${allNotes.join('\n')}\n\n`;
-    }
-
+   
     // Cash to deposit
     message += `� *Cash to deposit (after expenses):* ${cashToDeposit} RWF\n\n`;
 
