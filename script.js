@@ -1560,6 +1560,7 @@ function sendWhatsAppSummary() {
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
 }
 
+// Update the generateWhatsAppShiftSummary function to include all notes
 function generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses) {
     if (!navigator.onLine) {
         if (confirm('Offline - Copy shift details to clipboard?')) {
@@ -1576,6 +1577,15 @@ function generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses) 
                 message += `- ${name}: ${data.quantity} × ${data.price} RWF\n`;
             });
             
+            // Include all notes in the report
+            const allNotes = getExpensesForShift(shift.id)
+                .filter(e => e.notes)
+                .map(e => `• ${e.notes} (${formatDateTime(e.date)})`);
+            
+            if (allNotes.length > 0) {
+                message += `\n*Notes & Comments:*\n${allNotes.join('\n')}\n`;
+            }
+            
             message += `\n_Available to paste into WhatsApp when online_`;
 
             navigator.clipboard.writeText(message)
@@ -1585,7 +1595,6 @@ function generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses) 
         return;
     }
 
-    // Original online code
     const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
     const sortedItems = Object.entries(itemBreakdown)
         .sort((a, b) => b[1].quantity - a[1].quantity);
@@ -1608,11 +1617,143 @@ function generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses) 
         message += `   - Total: ${data.total} RWF\n`;
     });
 
+    // Get all notes from expenses (both regular and note-only)
+    const allNotes = getExpensesForShift(shift.id)
+        .filter(e => e.notes)
+        .map(e => `• ${e.notes} (${formatDateTime(e.date)})`);
+    
+    if (allNotes.length > 0) {
+        message += `\n*Notes & Comments:*\n${allNotes.join('\n')}\n`;
+    }
+
     // Open WhatsApp
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
 }
 
+// Update the sendWhatsAppSummary function to include notes
+function sendWhatsAppSummary() {
+    const lastShift = getShiftHistory()[getShiftHistory().length - 1];
+    if (!lastShift) {
+        alert('No shift history found!');
+        return;
+    }
+
+    // Calculate duration
+    const duration = formatDuration(lastShift.startTime, lastShift.endTime);
+    
+    // Get sales data
+    const sales = getSales().filter(sale => lastShift.sales.includes(sale.id));
+    const products = getProducts();
+    
+    // Calculate item breakdown with price and total
+    const itemBreakdown = {};
+    sales.forEach(sale => {
+        sale.items.forEach(item => {
+            if (!itemBreakdown[item.name]) {
+                itemBreakdown[item.name] = {
+                    quantity: 0,
+                    price: item.price,
+                    total: 0
+                };
+            }
+            itemBreakdown[item.name].quantity += item.quantity;
+            itemBreakdown[item.name].total += item.quantity * item.price;
+        });
+    });
+
+    // Sort items by quantity sold (top 5)
+    const sortedItems = Object.entries(itemBreakdown)
+        .sort((a, b) => b[1].quantity - a[1].quantity);
+
+    // Get expenses
+    const expenses = getExpensesForShift(lastShift.id);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    
+    // Calculate cash to deposit
+    const cashToDeposit = (lastShift.startingCash || 0) + lastShift.cashTotal - totalExpenses;
+
+    // Format WhatsApp message
+    let message = `*Shift Summary*\n\n`;
+    
+    // Header Info
+    message += `*Date:* ${new Date(lastShift.startTime).toISOString().split('T')[0]}\n`;
+    message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n`;
+    message += `*Start Time:* ${new Date(lastShift.startTime).toTimeString().split(' ')[0]}\n`;
+    message += `*End Time:* ${new Date(lastShift.endTime).toTimeString().split(' ')[0]}\n`;
+    message += `*Duration:* ${duration}\n\n`;
+    
+    // Sales Overview
+    message += `*Starting Cash:* ${lastShift.startingCash || 0} RWF\n`;
+    message += `- � Cash: ${lastShift.cashTotal} RWF\n`;
+    message += `- � MoMo: ${lastShift.momoTotal} RWF\n`;
+    message += `*Total Sales:* ${lastShift.total} RWF\n`;
+    message += `*Transactions:* ${lastShift.sales.length}\n`;
+    message += `*Refunds:* ${lastShift.refunds ? lastShift.refunds.length : 0}\n`;
+    message += `*Expenses:* ${totalExpenses} RWF\n\n`;
+    
+    // Top 5 Sellers
+    message += `� *Top 5 Sellers*\n`;
+    sortedItems.slice(0, 5).forEach(([name, data], index) => {
+        message += `${index + 1}. ${name} : ${data.quantity} sold\n`;
+    });
+    message += `\n`;
+    
+    // All Items Sold
+    message += `� *All Items Sold*\n\n`;
+    sortedItems.forEach(([name, data]) => {
+        const product = products.find(p => p.name === name);
+        message += `➤ ${name}\n`;
+        message += `   - Sold: ${data.quantity}\n`;
+        message += `   - Price: ${data.price} RWF\n`;
+        message += `   - Total: ${data.total} RWF\n`;
+        if (product && product.quantity !== 'unlimited') {
+            message += `   - Stock Left: ${product.quantity}\n`;
+        }
+        message += `\n`;
+    });
+
+    // Expense Details
+    if (expenses.length > 0) {
+        message += `� *Expense Details*\n`;
+        expenses.forEach(expense => {
+            message += `- ${expense.name}: ${expense.amount} RWF\n`;
+            if (expense.notes) {
+                message += `  Note: ${expense.notes}\n`;
+            }
+        });
+        message += `\n`;
+    }
+
+    // Include all notes (both from expenses and note-only entries)
+    const allNotes = getExpensesForShift(lastShift.id)
+        .filter(e => e.notes && (e.noteOnly || e.amount === 0))
+        .map(e => `• ${e.notes} (${formatDateTime(e.date)})`);
+    
+    if (allNotes.length > 0) {
+        message += `*Additional Notes:*\n${allNotes.join('\n')}\n\n`;
+    }
+
+    // Cash to deposit
+    message += `� *Cash to deposit (after expenses):* ${cashToDeposit} RWF\n\n`;
+
+    // Footer
+    message += `_Report generated on ${new Date().toLocaleDateString()}, ${new Date().toLocaleTimeString()}_`;
+
+    // Handle offline case
+    if (!navigator.onLine) {
+        if (confirm('You are offline. Copy to clipboard instead?')) {
+            navigator.clipboard.writeText(message)
+                .then(() => alert('Report copied! Paste into WhatsApp when online.'))
+                .catch(() => alert('Failed to copy.'));
+        }
+        return;
+    }
+
+    // Open WhatsApp
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+}
 // ======================
 // EXPENSES TAB FUNCTIONS
 // ======================
@@ -1627,20 +1768,23 @@ function initExpensesTab() {
 
 function addExpenseHandler() {
     const name = document.getElementById('expense-name').value.trim();
-    const amount = document.getElementById('expense-amount').value;
+    const amount = parseFloat(document.getElementById('expense-amount').value) || 0;
     const notes = document.getElementById('expense-notes').value.trim();
     
-    // Check if this is a note-only expense (marked with @)
-    const isNoteOnly = name.startsWith('@') || amount.startsWith('@');
+    // Check if this is a note-only entry (only notes field has content)
+    const isNoteOnly = notes && (!name && amount === 0);
     
     if (isNoteOnly) {
-        // For note-only expenses, clean the @ symbol and store with amount 0
-        const cleanName = name.startsWith('@') ? name.substring(1).trim() : name;
-        addExpense(cleanName, 0, notes, true);
+        // For note-only entries, we'll use a default name and 0 amount
+        addExpense("Note", 0, notes, true);
     } else {
-        // Regular expense - validate amount if provided
-        if (amount && isNaN(amount)) {
-            alert('Amount must be a number!');
+        // Regular expense - validate required fields
+        if (!name) {
+            alert('Please enter a name for the expense!');
+            return;
+        }
+        if (amount <= 0) {
+            alert('Amount must be greater than 0 for regular expenses!');
             return;
         }
         addExpense(name, amount, notes, false);
@@ -1665,25 +1809,60 @@ function loadExpenses() {
         return;
     }
     
+    // Calculate totals
+    const totalExpenses = expenses
+        .filter(expense => !expense.noteOnly)
+        .reduce((sum, expense) => sum + expense.amount, 0);
+    
+    const totalNotes = expenses
+        .filter(expense => expense.noteOnly)
+        .length;
+    
+    // Add summary header
+    expensesList.innerHTML = `
+        <div class="expenses-summary">
+            <div class="expenses-total">
+                <span>Total Expenses:</span>
+                <span>${totalExpenses} RWF</span>
+            </div>
+            <div class="notes-total">
+                <span>Notes:</span>
+                <span>${totalNotes}</span>
+            </div>
+        </div>
+    `;
+    
     expenses.forEach(expense => {
         const expenseItem = document.createElement('div');
         expenseItem.className = `expense-item ${expense.noteOnly ? 'note-only' : ''}`;
         
-        expenseItem.innerHTML = `
-            <div class="expense-info">
-                <h4>${expense.noteOnly ? '📝 ' : ''}${expense.name || 'No description'}</h4>
-                <p class="expense-date">${formatDateTime(expense.date)}</p>
-                ${expense.notes ? `<p class="expense-notes">${expense.notes}</p>` : ''}
-            </div>
-            <div class="expense-amount-section">
-                <span class="expense-amount ${expense.noteOnly ? 'note-amount' : ''}">
-                    ${expense.noteOnly ? '' : '-'}${expense.amount} RWF
-                </span>
+        if (expense.noteOnly) {
+            // Display note-only entries differently
+            expenseItem.innerHTML = `
+                <div class="expense-info">
+                    <p class="expense-date">${formatDateTime(expense.date)}</p>
+                    <p class="expense-notes">${expense.notes}</p>
+                </div>
                 <button class="delete-expense-btn" data-id="${expense.id}">
                     <i class="fas fa-trash"></i>
                 </button>
-            </div>
-        `;
+            `;
+        } else {
+            // Regular expense display
+            expenseItem.innerHTML = `
+                <div class="expense-info">
+                    <h4>${expense.name || 'No description'}</h4>
+                    <p class="expense-date">${formatDateTime(expense.date)}</p>
+                    ${expense.notes ? `<p class="expense-notes">${expense.notes}</p>` : ''}
+                </div>
+                <div class="expense-amount-section">
+                    <span class="expense-amount">-${expense.amount} RWF</span>
+                    <button class="delete-expense-btn" data-id="${expense.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }
         
         expensesList.appendChild(expenseItem);
     });
@@ -1692,7 +1871,7 @@ function loadExpenses() {
     document.querySelectorAll('.delete-expense-btn').forEach(button => {
         button.addEventListener('click', (e) => {
             const expenseId = parseInt(e.currentTarget.getAttribute('data-id'));
-            if (confirm('Are you sure you want to delete this expense?')) {
+            if (confirm('Are you sure you want to delete this entry?')) {
                 deleteExpense(expenseId);
                 loadExpenses();
             }
@@ -1719,12 +1898,12 @@ function addExpense(name = "", amount = 0, notes = '', noteOnly = false) {
     
     const expense = {
         id: Date.now(),
-        name: name,
-        amount: noteOnly ? 0 : (parseFloat(amount) || 0),
+        name: noteOnly ? "Note" : name,
+        amount: noteOnly ? 0 : amount,
         notes: notes,
         date: new Date().toISOString(),
         shiftId: activeShift ? activeShift.id : null,
-        noteOnly: noteOnly // Flag for note-only expenses
+        noteOnly: noteOnly
     };
     
     expenses.push(expense);
