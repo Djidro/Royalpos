@@ -1650,6 +1650,7 @@ function sendWhatsAppSummary() {
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
 }
+
 // ======================
 // EXPENSES TAB FUNCTIONS
 // ======================
@@ -1663,6 +1664,12 @@ function initExpensesTab() {
 }
 
 function addExpenseHandler() {
+    const activeShift = getActiveShift();
+    if (!activeShift) {
+        alert('Please start a shift before recording expenses!');
+        return;
+    }
+
     const name = document.getElementById('expense-name').value.trim();
     const amount = parseFloat(document.getElementById('expense-amount').value) || 0;
     const notes = document.getElementById('expense-notes').value.trim();
@@ -1698,14 +1705,27 @@ function loadExpenses() {
     const expensesList = document.getElementById('expenses-list');
     expensesList.innerHTML = '';
     
-    const expenses = getExpenses().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const activeShift = getActiveShift();
+    let expenses = [];
     
-    if (expenses.length === 0) {
-        expensesList.innerHTML = '<p class="no-expenses">No expenses recorded yet.</p>';
+    if (activeShift) {
+        // Only show expenses for the current active shift
+        expenses = getExpensesForShift(activeShift.id);
+    } else {
+        // If no active shift, show a message
+        expensesList.innerHTML = '<p class="no-expenses">No active shift - expenses can only be recorded during an active shift.</p>';
         return;
     }
     
-    // Calculate totals
+    // Sort by date (newest first)
+    expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    if (expenses.length === 0) {
+        expensesList.innerHTML = '<p class="no-expenses">No expenses recorded for this shift yet.</p>';
+        return;
+    }
+    
+    // Calculate totals for this shift only
     const totalExpenses = expenses
         .filter(expense => !expense.noteOnly)
         .reduce((sum, expense) => sum + expense.amount, 0);
@@ -1718,7 +1738,7 @@ function loadExpenses() {
     expensesList.innerHTML = `
         <div class="expenses-summary">
             <div class="expenses-total">
-                <span>Total Expenses:</span>
+                <span>Total Expenses for Shift #${activeShift.id}:</span>
                 <span>${totalExpenses} RWF</span>
             </div>
             <div class="notes-total">
@@ -1792,13 +1812,18 @@ function addExpense(name = "", amount = 0, notes = '', noteOnly = false) {
     const expenses = getExpenses();
     const activeShift = getActiveShift();
     
+    if (!activeShift) {
+        alert('Cannot add expense - no active shift!');
+        return null;
+    }
+    
     const expense = {
         id: Date.now(),
         name: noteOnly ? "Note" : name,
         amount: noteOnly ? 0 : amount,
         notes: notes,
         date: new Date().toISOString(),
-        shiftId: activeShift ? activeShift.id : null,
+        shiftId: activeShift.id,
         noteOnly: noteOnly
     };
     
@@ -1806,7 +1831,7 @@ function addExpense(name = "", amount = 0, notes = '', noteOnly = false) {
     saveExpenses(expenses);
     
     // Only add to shift totals if it's a regular expense
-    if (activeShift && !noteOnly) {
+    if (!noteOnly) {
         if (!activeShift.expenses) activeShift.expenses = [];
         activeShift.expenses.push(expense.id);
         saveActiveShift(activeShift);
@@ -1840,6 +1865,37 @@ function getExpensesForShift(shiftId) {
     return expenses.filter(expense => expense.shiftId === shiftId);
 }
 
+// Update the shift end function to prevent modifying previous shift expenses
+function endShift() {
+    const activeShift = getActiveShift();
+    if (!activeShift) return;
+
+    if (getCart().length > 0) {
+        if (!confirm('You have items in the cart. Are you sure you want to end the shift?')) {
+            return;
+        }
+    }
+
+    // Finalize the shift data
+    activeShift.endTime = new Date().toISOString();
+    
+    // Save to shift history
+    const shiftHistory = getShiftHistory();
+    shiftHistory.push(activeShift);
+    saveShiftHistory(shiftHistory);
+
+    // Clear active shift
+    localStorage.removeItem('bakeryPosActiveShift');
+
+    checkActiveShift();
+    updateShiftDisplay();
+    
+    // Show WhatsApp button
+    document.getElementById('whatsapp-section').style.display = 'block';
+    
+    // Show notification
+    alert(`Shift #${activeShift.id} ended at ${new Date(activeShift.endTime).toLocaleTimeString()}\nTotal Sales: ${activeShift.total} RWF`);
+}
 // ======================
 // HELPER FUNCTIONS
 // ======================
