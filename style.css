@@ -63,16 +63,14 @@ body {
     margin: 0 auto;
     padding: 15px;
 }
-
 header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end; /* Changed from space-between to flex-end */
     align-items: center;
     margin-bottom: 20px;
     padding-bottom: 10px;
     border-bottom: 1px solid #ddd;
 }
-
 h1 {
     color: var(--primary-color);
     display: flex;
