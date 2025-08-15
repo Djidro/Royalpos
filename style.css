@@ -1,17 +1,28 @@
-:root {
-    --primary-color: #e67e22;
-    --secondary-color: #f39c12;
-    --success-color: #2ecc71;
-    --danger-color: #e74c3c;
-    --warning-color: #f39c12;
-    --info-color: #3498db;
-    --light-color: #ecf0f1;
-    --dark-color: #2c3e50;
-    --white: #ffffff;
-    --gray: #95a5a6;
-    --light-gray: #bdc3c7;
-}
 
+:root {
+    /* Modern Brand Colors */
+    --primary-color: #4361ee;    /* Vibrant blue (main actions) */
+    --secondary-color: #3a0ca3;  /* Deep purple (secondary buttons) */
+    --accent-color: #f72585;     /* Electric pink (highlights) */
+
+    /* Status Colors */
+    --success-color: #4cc9f0;    /* Sky blue (success) */
+    --danger-color: #ef233c;     /* Bright red (errors) */
+    --warning-color: #f77f00;    /* Sunset orange (warnings) */
+    --info-color: #4895ef;       /* Soft blue (information) */
+
+    /* Neutrals */
+    --light-color: #f8f9fa;      /* Cloud white (backgrounds) */
+    --dark-color: #212529;       /* Charcoal (text/headers) */
+    --white: #ffffff;            /* Pure white */
+    --gray: #6c757d;             /* Steel gray (secondary text) */
+    --light-gray: #e9ecef;       /* Silver (borders) */
+
+    /* Special Accents */
+    --stock-green: #38b000;      /* Green (in-stock items) */
+    --stock-red: #d00000;        /* Red (out-of-stock) */
+    --shift-active: #70e000;     /* Neon green (active shift) */
+}
 /* Cart Notification Styles - Now works on all screen sizes */
 .cart-notification {
     position: fixed;
@@ -73,7 +84,7 @@ h1 {
     padding: 8px 15px;
     border-radius: 20px;
     font-weight: bold;
-    font-size: 14px;
+    font-size: 6px;
     display: flex;
     align-items: center;
     gap: 5px;
