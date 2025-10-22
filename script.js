@@ -2043,28 +2043,61 @@ function loadShiftHistoryPage(pageNumber) {
             viewShiftDetails(shiftId);
         });
     });
-// SIMPLE ADMIN MESSAGE SYSTEM - ADD AT BOTTOM OF script.js
-function displayAdminMessage() {
-    try {
-        const message = localStorage.getItem('bakeryPosAdminMessage');
-        const banner = document.getElementById('admin-message-banner');
-        const messageText = document.getElementById('admin-message-text');
-        
-        if (banner && messageText) {
-            if (message && message.trim() !== '') {
-                messageText.textContent = message;
-                banner.style.display = 'block';
-            } else {
-                banner.style.display = 'none';
-            }
-        }
-    } catch (error) {
-        console.log('Admin message error:', error);
-    }
-}
+function generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses) {
+    const duration = formatDuration(shift.startTime, shift.endTime);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const cashToDeposit = (shift.startingCash || 0) + shift.cashTotal - totalExpenses;
 
-// Call this function when page loads
-setTimeout(displayAdminMessage, 100);
+    // Sort items by quantity sold
+    const sortedItems = Object.entries(itemBreakdown)
+        .sort((a, b) => b[1].quantity - a[1].quantity);
+
+    let message = `*Shift Summary*\n\n`;
+    
+    // Header Info
+    message += `*Date:* ${new Date(shift.startTime).toISOString().split('T')[0]}\n`;
+    message += `*Cashier:* ${shift.Cashier || 'Cashier'}\n`;
+    message += `*Duration:* ${duration}\n\n`;
+    
+    // Sales Overview
+    message += `*Starting Cash:* ${shift.startingCash || 0} RWF\n`;
+    message += `*Cash Sales:* ${shift.cashTotal} RWF\n`;
+    message += `*MoMo Sales:* ${shift.momoTotal} RWF\n`;
+    message += `*Total Sales:* ${shift.total} RWF\n`;
+    message += `*Transactions:* ${shift.sales.length}\n`;
+    message += `*Refunds:* ${shift.refunds ? shift.refunds.length : 0}\n`;
+    message += `*Expenses:* ${totalExpenses} RWF\n\n`;
+    
+    // Top Sellers
+    message += `*Top Sellers*\n`;
+    sortedItems.slice(0, 5).forEach(([name, data], index) => {
+        message += `${index + 1}. ${name}: ${data.quantity} sold\n`;
+    });
+    message += `\n`;
+    
+    // Cash to deposit
+    message += `*Cash to deposit:* ${cashToDeposit} RWF\n\n`;
+
+    // Footer
+    message += `_Report generated on ${new Date().toLocaleString()}_`;
+
+    // Handle offline case
+    if (!navigator.onLine) {
+        if (confirm('You are offline. Copy to clipboard instead?')) {
+            navigator.clipboard.writeText(message)
+                .then(() => alert('Report copied! Paste into WhatsApp when online.'))
+                .catch(() => alert('Failed to copy.'));
+        }
+        return;
+    }
+
+    // Open WhatsApp
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+}
 
 // Call initialization
 initializeSampleData();
+
+// Call this function when page loads
+setTimeout(displayAdminMessage, 100)
