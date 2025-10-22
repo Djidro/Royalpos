@@ -2043,40 +2043,28 @@ function loadShiftHistoryPage(pageNumber) {
             viewShiftDetails(shiftId);
         });
     });
-}
-// ======================
-// ADMIN MESSAGE FUNCTIONS
-// ======================
-
+// SIMPLE ADMIN MESSAGE SYSTEM - ADD AT BOTTOM OF script.js
 function displayAdminMessage() {
-    const message = localStorage.getItem('bakeryPosAdminMessage');
-    const banner = document.getElementById('admin-message-banner');
-    const messageText = document.getElementById('admin-message-text');
-    
-    // Safety check
-    if (!banner || !messageText) return;
-    
-    if (message && message.trim() !== '') {
-        messageText.textContent = message;
-        banner.style.display = 'block';
-        // Make sure it's visible
-        banner.style.backgroundColor = '#e67e22';
-        banner.style.color = 'white';
-        banner.style.padding = '12px';
-        banner.style.textAlign = 'center';
-        banner.style.fontWeight = 'bold';
-        banner.style.fontSize = '16px';
-    } else {
-        banner.style.display = 'none';
+    try {
+        const message = localStorage.getItem('bakeryPosAdminMessage');
+        const banner = document.getElementById('admin-message-banner');
+        const messageText = document.getElementById('admin-message-text');
+        
+        if (banner && messageText) {
+            if (message && message.trim() !== '') {
+                messageText.textContent = message;
+                banner.style.display = 'block';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.log('Admin message error:', error);
     }
 }
 
-function saveAdminMessage(message) {
-    localStorage.setItem('bakeryPosAdminMessage', message);
-    // Refresh display if function exists
-    if (typeof displayAdminMessage === 'function') {
-        displayAdminMessage();
-    }
-}
+// Call this function when page loads
+setTimeout(displayAdminMessage, 100);
+
 // Call initialization
 initializeSampleData();
