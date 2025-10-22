@@ -255,39 +255,16 @@
             loadProductsList();
             
             // Set up event listeners
-            document.getElementById('save-message-btn').addEventListener('click', saveMessage);
-            document.getElementById('add-product-btn').addEventListener('click', addProduct);
-        }
-        
-        // Load current message
-        function loadCurrentMessage() {
-            const message = localStorage.getItem('bakeryPosAdminMessage') || '';
-            const displayElement = document.getElementById('current-message-display');
-            
-            if (message) {
-                displayElement.innerHTML = `
-                    <strong>Current Message:</strong>
-                    <p>${message}</p>
-                    <button id="clear-message-btn" class="admin-btn" style="background: #e74c3c; margin-top: 10px;">
-                        <i class="fas fa-trash"></i> Clear Message
-                    </button>
-                `;
-                
-                document.getElementById('clear-message-btn').addEventListener('click', clearMessage);
-            } else {
-                displayElement.innerHTML = '<em>No message set. Cashiers will see nothing.</em>';
-            }
-            
-            document.getElementById('admin-message').value = message;
-        }
-        
-        // Save message
-        function saveMessage() {
-            const message = document.getElementById('admin-message').value.trim();
-            localStorage.setItem('bakeryPosAdminMessage', message);
-            alert('Message saved! It will now appear on the POS page.');
-            loadCurrentMessage();
-        }
+          document.getElementById('save-message-btn').addEventListener('click', function() {
+    const message = document.getElementById('admin-message').value.trim();
+    if (typeof saveAdminMessage === 'function') {
+        saveAdminMessage(message);
+    } else {
+        localStorage.setItem('bakeryPosAdminMessage', message);
+    }
+    alert('Message saved! It will now appear on the POS page.');
+    loadCurrentMessage();
+});
         
         // Clear message
         function clearMessage() {
