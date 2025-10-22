@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel | Royal Bakes</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .admin-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .admin-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        
+        .admin-form {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .admin-form input, .admin-form textarea {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .admin-form textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .admin-btn {
+            background: #e67e22;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+        
+        .admin-btn:hover {
+            background: #d35400;
+        }
+        
+        .message-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border-left: 4px solid #e67e22;
+        }
+        
+        .back-to-pos {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #e67e22;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .back-to-pos:hover {
+            text-decoration: underline;
+        }
+        
+        /* PIN Login Styles */
+        .pin-login {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .pin-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        
+        .pin-input {
+            font-size: 24px;
+            text-align: center;
+            letter-spacing: 8px;
+            padding: 10px;
+            margin: 15px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            width: 150px;
+        }
+        
+        .pin-error {
+            color: #e74c3c;
+            margin: 10px 0;
+            display: none;
+        }
+
+        /* Add to existing style section */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+    </style>
+</head>
+<body>
+    <!-- PIN Login Screen -->
+    <div id="pin-login" class="pin-login">
+        <div class="pin-container">
+            <h2><i class="fas fa-lock"></i> Admin Access</h2>
+            <p>Enter PIN to continue</p>
+            <input type="password" id="pin-input" class="pin-input" maxlength="4" placeholder="0000">
+            <div id="pin-error" class="pin-error">
+                <i class="fas fa-exclamation-triangle"></i> Incorrect PIN!
+            </div>
+            <button id="pin-submit" class="admin-btn">
+                <i class="fas fa-unlock"></i> Enter
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Admin Content (Hidden until PIN is correct) -->
+    <div id="admin-content" style="display: none;">
+        <div class="admin-container">
+            <a href="index.html" class="back-to-pos">
+                <i class="fas fa-arrow-left"></i> Back to POS
+            </a>
+            
+            <h1><i class="fas fa-crown"></i> Admin Panel - Royal Bakes</h1>
+            
+            <!-- Message Section -->
+            <div class="admin-section">
+                <h2><i class="fas fa-bullhorn"></i> Store Message</h2>
+                <p>This message will appear at the top of the POS page for cashiers.</p>
+                
+                <div class="admin-form">
+                    <textarea id="admin-message" placeholder="Enter your message for cashiers (e.g., '10% off today!', 'New products available!')"></textarea>
+                    <button id="save-message-btn" class="admin-btn">
+                        <i class="fas fa-save"></i> Save Message
+                    </button>
+                </div>
+                
+                <div id="current-message-display" class="message-display">
+                    <!-- Current message will appear here -->
+                </div>
+            </div>
+            
+            <!-- Add Product Section -->
+            <div class="admin-section">
+                <h2><i class="fas fa-plus-circle"></i> Add New Product</h2>
+                
+                <div class="admin-form">
+                    <input type="text" id="admin-product-name" placeholder="Product Name">
+                    <input type="number" id="admin-product-price" placeholder="Price (RWF)" min="0" step="1">
+                    <input type="text" id="admin-product-quantity" placeholder="Quantity (or 'unlimited')">
+                    <small style="color: #666;">
+                        Enter a number or "unlimited" for items that don't need stock tracking
+                    </small>
+                    <button id="add-product-btn" class="admin-btn">
+                        <i class="fas fa-plus"></i> Add Product
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Manage Products Section -->
+            <div class="admin-section">
+                <h2><i class="fas fa-edit"></i> Manage Products</h2>
+                <p>Delete products or edit stock quantities (cashiers can only change quantities).</p>
+                
+                <div id="admin-products-list">
+                    <!-- Products will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PIN Configuration
+        const ADMIN_PIN = "0000"; // Change this PIN if needed
+        
+        // PIN Login Functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const pinInput = document.getElementById('pin-input');
+            const pinSubmit = document.getElementById('pin-submit');
+            const pinError = document.getElementById('pin-error');
+            const pinLogin = document.getElementById('pin-login');
+            const adminContent = document.getElementById('admin-content');
+            
+            // Auto-focus on PIN input
+            pinInput.focus();
+            
+            // Submit PIN on button click
+            pinSubmit.addEventListener('click', checkPIN);
+            
+            // Submit PIN on Enter key
+            pinInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    checkPIN();
+                }
+            });
+            
+            // Auto-tab between PIN digits (optional enhancement)
+            pinInput.addEventListener('input', function() {
+                if (this.value.length === 4) {
+                    checkPIN();
+                }
+            });
+            
+            function checkPIN() {
+                const enteredPIN = document.getElementById('pin-input').value;
+                const pinError = document.getElementById('pin-error');
+                const pinLogin = document.getElementById('pin-login');
+                const adminContent = document.getElementById('admin-content');
+                
+                if (enteredPIN === ADMIN_PIN) {
+                    // Correct PIN - show admin content
+                    pinLogin.style.display = 'none';
+                    adminContent.style.display = 'block';
+                    initializeAdminPanel();
+                } else {
+                    // Wrong PIN - show error
+                    pinError.style.display = 'block';
+                    document.getElementById('pin-input').value = '';
+                    document.getElementById('pin-input').focus();
+                    
+                    // Shake animation for wrong PIN
+                    pinLogin.style.animation = 'shake 0.5s';
+                    setTimeout(() => {
+                        pinLogin.style.animation = '';
+                    }, 500);
+                }
+            }
+        });
+        
+        // Admin Panel Functions
+        function initializeAdminPanel() {
+            loadCurrentMessage();
+            loadProductsList();
+            
+            // Set up event listeners
+            document.getElementById('save-message-btn').addEventListener('click', saveMessage);
+            document.getElementById('add-product-btn').addEventListener('click', addProduct);
+        }
+        
+        // Load current message
+        function loadCurrentMessage() {
+            const message = localStorage.getItem('bakeryPosAdminMessage') || '';
+            const displayElement = document.getElementById('current-message-display');
+            
+            if (message) {
+                displayElement.innerHTML = `
+                    <strong>Current Message:</strong>
+                    <p>${message}</p>
+                    <button id="clear-message-btn" class="admin-btn" style="background: #e74c3c; margin-top: 10px;">
+                        <i class="fas fa-trash"></i> Clear Message
+                    </button>
+                `;
+                
+                document.getElementById('clear-message-btn').addEventListener('click', clearMessage);
+            } else {
+                displayElement.innerHTML = '<em>No message set. Cashiers will see nothing.</em>';
+            }
+            
+            document.getElementById('admin-message').value = message;
+        }
+        
+        // Save message
+        function saveMessage() {
+            const message = document.getElementById('admin-message').value.trim();
+            localStorage.setItem('bakeryPosAdminMessage', message);
+            alert('Message saved! It will now appear on the POS page.');
+            loadCurrentMessage();
+        }
+        
+        // Clear message
+        function clearMessage() {
+            localStorage.removeItem('bakeryPosAdminMessage');
+            alert('Message cleared!');
+            loadCurrentMessage();
+        }
+        
+        // Add product
+        function addProduct() {
+            const name = document.getElementById('admin-product-name').value.trim();
+            const price = parseFloat(document.getElementById('admin-product-price').value);
+            let quantity = document.getElementById('admin-product-quantity').value.trim().toLowerCase();
+            
+            // Validation
+            if (!name || isNaN(price)) {
+                alert('Please fill in product name and price!');
+                return;
+            }
+            
+            if (price <= 0) {
+                alert('Price must be greater than 0!');
+                return;
+            }
+            
+            // Handle unlimited stock
+            const isUnlimited = quantity === 'unlimited';
+            if (!isUnlimited) {
+                quantity = parseInt(quantity);
+                if (isNaN(quantity) || quantity < 0) {
+                    alert('Quantity must be a positive number or "unlimited"!');
+                    return;
+                }
+            }
+            
+            // Get existing products
+            const products = getProducts();
+            
+            // Check for duplicates
+            const existingProduct = products.find(p => p.name.toLowerCase() === name.toLowerCase());
+            if (existingProduct) {
+                alert('Product with this name already exists!');
+                return;
+            }
+            
+            // Add new product
+            products.push({
+                id: Date.now(),
+                name: name,
+                price: price,
+                quantity: isUnlimited ? 'unlimited' : quantity
+            });
+            
+            saveProducts(products);
+            loadProductsList();
+            
+            // Clear form
+            document.getElementById('admin-product-name').value = '';
+            document.getElementById('admin-product-price').value = '';
+            document.getElementById('admin-product-quantity').value = '';
+            
+            alert('Product added successfully!');
+        }
+        
+        // Load products list for admin
+        function loadProductsList() {
+            const productsList = document.getElementById('admin-products-list');
+            const products = getProducts();
+            
+            if (products.length === 0) {
+                productsList.innerHTML = '<p>No products available.</p>';
+                return;
+            }
+            
+            let html = '<div class="products-grid">';
+            
+            products.forEach(product => {
+                const stockDisplay = product.quantity === 'unlimited' ? 'Unlimited' : product.quantity;
+                
+                html += `
+                    <div class="product-card">
+                        <h3>${product.name}</h3>
+                        <p>${product.price} RWF</p>
+                        <p>Stock: ${stockDisplay}</p>
+                        <div style="margin-top: 10px;">
+                            <button class="admin-btn" onclick="deleteProduct(${product.id})" style="background: #e74c3c;">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            productsList.innerHTML = html;
+        }
+        
+        // Delete product
+        function deleteProduct(productId) {
+            if (!confirm('Are you sure you want to delete this product? This cannot be undone!')) {
+                return;
+            }
+            
+            const products = getProducts();
+            const updatedProducts = products.filter(p => p.id !== productId);
+            
+            saveProducts(updatedProducts);
+            loadProductsList();
+            alert('Product deleted successfully!');
+        }
+        
+        // Helper functions (same as in main POS)
+        function getProducts() {
+            const products = localStorage.getItem('bakeryPosProducts');
+            return products ? JSON.parse(products) : [];
+        }
+        
+        function saveProducts(products) {
+            localStorage.setItem('bakeryPosProducts', JSON.stringify(products));
+        }
+    </script>
+</body>
+</html>
