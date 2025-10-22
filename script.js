@@ -71,6 +71,7 @@ function initApp() {
 
     // Load low stock alerts
     checkLowStock();
+    displayAdminMessage()
 }
 
 function switchTab(tabId) {
@@ -2052,94 +2053,30 @@ function displayAdminMessage() {
     const banner = document.getElementById('admin-message-banner');
     const messageText = document.getElementById('admin-message-text');
     
+    // Safety check
+    if (!banner || !messageText) return;
+    
     if (message && message.trim() !== '') {
         messageText.textContent = message;
         banner.style.display = 'block';
+        // Make sure it's visible
+        banner.style.backgroundColor = '#e67e22';
+        banner.style.color = 'white';
+        banner.style.padding = '12px';
+        banner.style.textAlign = 'center';
+        banner.style.fontWeight = 'bold';
+        banner.style.fontSize = '16px';
     } else {
         banner.style.display = 'none';
     }
 }
 
-function updateStockQuantity(productId, newQuantity) {
-    const products = getProducts();
-    const productIndex = products.findIndex(p => p.id === productId);
-    
-    if (productIndex !== -1) {
-        if (newQuantity === 'unlimited' || newQuantity.toString().toLowerCase() === 'unlimited') {
-            products[productIndex].quantity = 'unlimited';
-        } else {
-            const quantity = parseInt(newQuantity);
-            if (isNaN(quantity) || quantity < 0) {
-                alert('Please enter a valid quantity (positive number or "unlimited")!');
-                return false;
-            }
-            products[productIndex].quantity = quantity;
-        }
-        
-        saveProducts(products);
-        loadProducts();
-        loadStockItems();
-        checkLowStock();
-        return true;
+function saveAdminMessage(message) {
+    localStorage.setItem('bakeryPosAdminMessage', message);
+    // Refresh display if function exists
+    if (typeof displayAdminMessage === 'function') {
+        displayAdminMessage();
     }
-    return false;
-}
-
-// REPLACE the existing loadStockItems function with this:
-function loadStockItems() {
-    const stockItemsContainer = document.getElementById('stock-items');
-    stockItemsContainer.innerHTML = '';
-
-    const products = getProducts();
-    
-    if (products.length === 0) {
-        stockItemsContainer.innerHTML = '<p class="no-items">No items in stock.</p>';
-        return;
-    }
-
-    products.forEach(product => {
-        const stockItem = document.createElement('div');
-        stockItem.className = 'stock-item';
-        const stockDisplay = product.quantity === 'unlimited' ? 'Unlimited' : product.quantity;
-        const stockClass = product.quantity !== 'unlimited' && product.quantity < 5 ? 'low-stock' : '';
-        const lowStockWarning = product.quantity !== 'unlimited' && product.quantity < 5 ? '(Low)' : '';
-        
-        stockItem.innerHTML = `
-            <span>${product.name}</span>
-            <span>${product.price} RWF</span>
-            <span class="${stockClass}">${stockDisplay} ${lowStockWarning}</span>
-            <input type="text" class="stock-quantity-input" data-id="${product.id}" 
-                   value="${product.quantity === 'unlimited' ? 'unlimited' : product.quantity}" 
-                   placeholder="Qty">
-            <button class="update-stock-btn" data-id="${product.id}"><i class="fas fa-sync-alt"></i> Update</button>
-        `;
-        
-        stockItemsContainer.appendChild(stockItem);
-    });
-
-    document.querySelectorAll('.update-stock-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const productId = parseInt(e.currentTarget.getAttribute('data-id'));
-            const inputElement = document.querySelector(`.stock-quantity-input[data-id="${productId}"]`);
-            const newQuantity = inputElement.value.trim();
-            
-            if (updateStockQuantity(productId, newQuantity)) {
-                const originalText = e.currentTarget.innerHTML;
-                e.currentTarget.innerHTML = '<i class="fas fa-check"></i> Updated!';
-                e.currentTarget.style.background = '#27ae60';
-                setTimeout(() => {
-                    e.currentTarget.innerHTML = originalText;
-                    e.currentTarget.style.background = '';
-                }, 2000);
-            }
-        });
-    });
-}
-
-// REPLACE the existing initStockTab function with this:
-function initStockTab() {
-    document.querySelector('.stock-form').style.display = 'none';
-    loadStockItems();
 }
 // Call initialization
 initializeSampleData();
