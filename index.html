@@ -17,9 +17,11 @@
     </noscript>
 </head>
 <body>
+    <body>
+    <!-- === ADD THIS CODE RIGHT AFTER <body> === -->
     <!-- Admin Message Display -->
     <div id="admin-message-banner" style="display: none;">
-        <div class="alert alert-info" style="margin: 0; border-radius: 0; text-align: center; background: #e67e22; color: white;">
+        <div class="alert alert-info" style="margin: 0; border-radius: 0; text-align: center;">
             <i class="fas fa-bullhorn"></i> 
             <span id="admin-message-text"></span>
         </div>
@@ -31,7 +33,6 @@
             <i class="fas fa-crown"></i> Admin
         </a>
     </div>
-
     <div class="container">
         <header>
             <div id="shift-status" class="shift-off">Shift: Not Started</div>
@@ -170,6 +171,6 @@
                     .catch(err => console.log('SW registration failed: ', err));
             });
         }
-    </script>
+    <script src="multi-device-sync.js"></script>
 </body>
 </html>
