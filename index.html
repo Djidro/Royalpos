@@ -17,22 +17,36 @@
     </noscript>
 </head>
 <body>
-    <!-- [Rest of your existing HTML body content remains exactly the same] -->
-</body>
-</html>
+    <!-- Admin Message Display -->
+    <div id="admin-message-banner" style="display: none;">
+        <div class="alert alert-info" style="margin: 0; border-radius: 0; text-align: center; background: #e67e22; color: white;">
+            <i class="fas fa-bullhorn"></i> 
+            <span id="admin-message-text"></span>
+        </div>
+    </div>
+
+    <!-- Admin Access Button -->
+    <div style="position: fixed; top: 10px; left: 10px; z-index: 1000;">
+        <a href="admin.html" class="btn" style="padding: 8px 12px; font-size: 12px; background: #2c3e50;">
+            <i class="fas fa-crown"></i> Admin
+        </a>
+    </div>
+
     <div class="container">
         <header>
-    <div id="shift-status" class="shift-off">Shift: Not Started</div>
+            <div id="shift-status" class="shift-off">Shift: Not Started</div>
         </header>
-      <nav>
-    <button class="tab-btn active" data-tab="pos"><i class="fas fa-cash-register"></i> POS</button>
-    <button class="tab-btn" data-tab="receipts"><i class="fas fa-receipt"></i> Receipts</button>
-    <button class="tab-btn" data-tab="summary"><i class="fas fa-chart-bar"></i> Summary</button>
-    <button class="tab-btn" data-tab="stock"><i class="fas fa-boxes"></i> Stock</button>
-    <button class="tab-btn" data-tab="expenses"><i class="fas fa-receipt"></i> Expenses</button>
-    <button class="tab-btn" data-tab="shift"><i class="fas fa-user-clock"></i> Shift</button>
-</nav>
-  <main>
+        
+        <nav>
+            <button class="tab-btn active" data-tab="pos"><i class="fas fa-cash-register"></i> POS</button>
+            <button class="tab-btn" data-tab="receipts"><i class="fas fa-receipt"></i> Receipts</button>
+            <button class="tab-btn" data-tab="summary"><i class="fas fa-chart-bar"></i> Summary</button>
+            <button class="tab-btn" data-tab="stock"><i class="fas fa-boxes"></i> Stock</button>
+            <button class="tab-btn" data-tab="expenses"><i class="fas fa-receipt"></i> Expenses</button>
+            <button class="tab-btn" data-tab="shift"><i class="fas fa-user-clock"></i> Shift</button>
+        </nav>
+        
+        <main>
             <!-- POS Tab -->
             <div id="pos" class="tab-content active">
                 <div class="products-grid" id="products-grid">
@@ -70,19 +84,19 @@
                 </div>
             </div>
        
-<div id="summary" class="tab-content">
-    <h2><i class="fas fa-chart-bar"></i> Sales Summary</h2>
-    <div class="date-range">
-        <input type="date" id="start-date">
-        <span>to</span>
-        <input type="date" id="end-date">
-        <button id="filter-summary-btn" class="btn"><i class="fas fa-filter"></i> Filter</button>
-        <button id="whatsapp-summary-btn" class="btn" style="background-color: #25D366;"><i class="fab fa-whatsapp"></i> Send Summary</button>
-    </div>
-    <div id="summary-content">
-        <!-- Summary will be loaded here -->
-    </div>
-</div>
+            <div id="summary" class="tab-content">
+                <h2><i class="fas fa-chart-bar"></i> Sales Summary</h2>
+                <div class="date-range">
+                    <input type="date" id="start-date">
+                    <span>to</span>
+                    <input type="date" id="end-date">
+                    <button id="filter-summary-btn" class="btn"><i class="fas fa-filter"></i> Filter</button>
+                    <button id="whatsapp-summary-btn" class="btn" style="background-color: #25D366;"><i class="fab fa-whatsapp"></i> Send Summary</button>
+                </div>
+                <div id="summary-content">
+                    <!-- Summary will be loaded here -->
+                </div>
+            </div>
 
             <!-- Stock Management Tab -->
             <div id="stock" class="tab-content">
@@ -118,20 +132,21 @@
                     <button id="send-whatsapp-btn" class="btn"><i class="fab fa-whatsapp"></i> Send Summary via WhatsApp</button>
                 </div>
             </div>
-     <!-- Expenses Tab -->
-<div id="expenses" class="tab-content">
-    <h2><i class="fas fa-receipt"></i> Expense Tracking</h2>
-    <div class="expense-form">
-        <input type="text" id="expense-name" placeholder="Expense Name">
-        <input type="number" id="expense-amount" placeholder="Amount (RWF)" min="0">
-        <textarea id="expense-notes" placeholder="Notes (optional)"></textarea>
-        <button id="add-expense-btn" class="btn"><i class="fas fa-plus"></i> Add Expense</button>
-    </div>
-    <div id="expenses-list">
-        <!-- Expenses will be loaded here -->
-    </div>
-</div>
-   </main>
+            
+            <!-- Expenses Tab -->
+            <div id="expenses" class="tab-content">
+                <h2><i class="fas fa-receipt"></i> Expense Tracking</h2>
+                <div class="expense-form">
+                    <input type="text" id="expense-name" placeholder="Expense Name">
+                    <input type="number" id="expense-amount" placeholder="Amount (RWF)" min="0">
+                    <textarea id="expense-notes" placeholder="Notes (optional)"></textarea>
+                    <button id="add-expense-btn" class="btn"><i class="fas fa-plus"></i> Add Expense</button>
+                </div>
+                <div id="expenses-list">
+                    <!-- Expenses will be loaded here -->
+                </div>
+            </div>
+        </main>
     </div>
 
     <!-- Receipt Modal -->
