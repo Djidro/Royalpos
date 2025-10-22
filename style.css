@@ -802,3 +802,26 @@ nav {
     color: #6c757d;
     padding: 20px;
 }
+.stock-quantity-input {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 80px;
+    text-align: center;
+}
+
+.update-stock-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.update-stock-btn:hover {
+    background: #2980b9;
+}
