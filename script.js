@@ -32,7 +32,11 @@ function updateOnlineStatus() {
     if (navigator.onLine) {
         setTimeout(() => {
             statusElement.style.opacity = '0';
-            setTimeout(() => statusElement.remove(), 500);
+            setTimeout(() => {
+                if (statusElement.parentNode) {
+                    statusElement.remove();
+                }
+            }, 500);
         }, 3000);
     }
 }
@@ -43,6 +47,7 @@ window.addEventListener('offline', updateOnlineStatus);
 
 // Initial check
 updateOnlineStatus();
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize the app
     initApp();
@@ -71,7 +76,6 @@ function initApp() {
 
     // Load low stock alerts
     checkLowStock();
-    displayAdminMessage();
 }
 
 function switchTab(tabId) {
@@ -86,8 +90,11 @@ function switchTab(tabId) {
     });
 
     // Activate the selected tab
-    document.getElementById(tabId).classList.add('active');
-    document.querySelector(`.tab-btn[data-tab="${tabId}"]`).classList.add('active');
+    const targetTab = document.getElementById(tabId);
+    const targetButton = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+    
+    if (targetTab) targetTab.classList.add('active');
+    if (targetButton) targetButton.classList.add('active');
 
     // Refresh the tab content if needed
     switch(tabId) {
@@ -123,11 +130,16 @@ function initPOSTab() {
     loadProducts();
 
     // Set up checkout button
-    document.getElementById('checkout-btn').addEventListener('click', checkout);
+    const checkoutBtn = document.getElementById('checkout-btn');
+    if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', checkout);
+    }
 }
 
 function loadProducts() {
     const productsGrid = document.getElementById('products-grid');
+    if (!productsGrid) return;
+    
     productsGrid.innerHTML = '';
 
     const products = getProducts();
@@ -167,8 +179,13 @@ function addToCart(productId) {
     const products = getProducts();
     const product = products.find(p => p.id === productId);
     
+    if (!product) {
+        alert('Product not found!');
+        return;
+    }
+    
     // Check if product exists and has stock (unless unlimited)
-    if (!product || (product.quantity !== 'unlimited' && product.quantity <= 0)) {
+    if (product.quantity !== 'unlimited' && product.quantity <= 0) {
         alert('This item is out of stock!');
         return;
     }
@@ -209,6 +226,9 @@ function updateCartDisplay() {
     const cartItemsContainer = document.getElementById('cart-items');
     const cartTotalElement = document.getElementById('cart-total');
     const checkoutBtn = document.getElementById('checkout-btn');
+    
+    if (!cartItemsContainer || !cartTotalElement || !checkoutBtn) return;
+    
     const cart = getCart();
     const products = getProducts();
 
@@ -242,26 +262,28 @@ function updateCartDisplay() {
     });
 
     // Update event listeners
-    document.querySelectorAll('.decrease-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const productId = parseInt(e.currentTarget.getAttribute('data-id'));
-            updateCartItemQuantity(productId, -1);
+    setTimeout(() => {
+        document.querySelectorAll('.decrease-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const productId = parseInt(e.currentTarget.getAttribute('data-id'));
+                updateCartItemQuantity(productId, -1);
+            });
         });
-    });
 
-    document.querySelectorAll('.increase-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const productId = parseInt(e.currentTarget.getAttribute('data-id'));
-            updateCartItemQuantity(productId, 1);
+        document.querySelectorAll('.increase-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const productId = parseInt(e.currentTarget.getAttribute('data-id'));
+                updateCartItemQuantity(productId, 1);
+            });
         });
-    });
 
-    document.querySelectorAll('.remove-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const productId = parseInt(e.currentTarget.getAttribute('data-id'));
-            removeFromCart(productId);
+        document.querySelectorAll('.remove-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const productId = parseInt(e.currentTarget.getAttribute('data-id'));
+                removeFromCart(productId);
+            });
         });
-    });
+    }, 100);
 
     cartTotalElement.textContent = total;
     checkoutBtn.disabled = cart.length === 0 || !getActiveShift();
@@ -312,7 +334,9 @@ function removeFromCart(productId) {
         document.body.appendChild(notification);
         
         setTimeout(() => {
-            notification.remove();
+            if (notification.parentNode) {
+                notification.remove();
+            }
         }, 2000);
     }
 }
@@ -330,7 +354,13 @@ function checkout() {
         return;
     }
 
-    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+    const paymentMethodElement = document.querySelector('input[name="payment"]:checked');
+    if (!paymentMethodElement) {
+        alert('Please select a payment method!');
+        return;
+    }
+    
+    const paymentMethod = paymentMethodElement.value;
     const products = getProducts();
     
     // Check stock availability (skip unlimited items)
@@ -404,19 +434,28 @@ function checkout() {
 
 function initReceiptsTab() {
     // Set up date filter
-    document.getElementById('filter-receipts-btn').addEventListener('click', loadReceipts);
+    const filterBtn = document.getElementById('filter-receipts-btn');
+    if (filterBtn) {
+        filterBtn.addEventListener('click', loadReceipts);
+    }
     
     // Set today's date as default filter
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('receipt-date-filter').value = today;
+    const dateFilter = document.getElementById('receipt-date-filter');
+    if (dateFilter) {
+        const today = new Date().toISOString().split('T')[0];
+        dateFilter.value = today;
+    }
 
     // Add refund button to receipt modal
-    document.getElementById('receipt-modal').addEventListener('click', function(e) {
-        if (e.target.id === 'refund-receipt-btn') {
-            const receiptId = parseInt(e.target.getAttribute('data-id'));
-            processRefund(receiptId);
-        }
-    });
+    const receiptModal = document.getElementById('receipt-modal');
+    if (receiptModal) {
+        receiptModal.addEventListener('click', function(e) {
+            if (e.target.id === 'refund-receipt-btn') {
+                const receiptId = parseInt(e.target.getAttribute('data-id'));
+                processRefund(receiptId);
+            }
+        });
+    }
 }
 
 function processRefund(receiptId) {
@@ -487,19 +526,25 @@ function processRefund(receiptId) {
     checkLowStock();
     
     alert('Refund processed successfully!');
-    document.getElementById('receipt-modal').style.display = 'none';
+    const modal = document.getElementById('receipt-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 function loadReceipts() {
     const receiptsList = document.getElementById('receipts-list');
+    if (!receiptsList) return;
+    
     receiptsList.innerHTML = '';
 
-    const dateFilter = document.getElementById('receipt-date-filter').value;
+    const dateFilter = document.getElementById('receipt-date-filter');
+    const filterValue = dateFilter ? dateFilter.value : '';
     const sales = getSales();
 
     // Filter sales by date if filter is set
-    const filteredSales = dateFilter 
-        ? sales.filter(sale => sale.date.split('T')[0] === dateFilter)
+    const filteredSales = filterValue 
+        ? sales.filter(sale => sale.date.split('T')[0] === filterValue)
         : sales;
 
     if (filteredSales.length === 0) {
@@ -526,6 +571,8 @@ function loadReceipts() {
 function showReceipt(sale) {
     const modal = document.getElementById('receipt-modal');
     const receiptContent = document.getElementById('receipt-content');
+    
+    if (!modal || !receiptContent) return;
     
     // Format receipt content
     let itemsHtml = '';
@@ -583,26 +630,35 @@ function showReceipt(sale) {
     }
 
     // Set up copy receipt button
-    document.getElementById('copy-receipt-btn').onclick = function() {
-        const receiptText = `Receipt #${sale.id}\nDate: ${new Date(sale.date).toLocaleString()}\nPayment Method: ${sale.paymentMethod.toUpperCase()}\nShift ID: ${sale.shiftId || 'N/A'}\n\nItems:\n${
-            sale.items.map(item => `${item.name} - ${item.quantity} × ${item.price} RWF = ${item.price * item.quantity} RWF`).join('\n')
-        }\n\nGrand Total: ${sale.total} RWF`;
-        
-        navigator.clipboard.writeText(receiptText).then(() => {
-            alert('Receipt copied to clipboard!');
-        }).catch(err => {
-            console.error('Failed to copy receipt: ', err);
-            alert('Failed to copy receipt. Please try again.');
-        });
-    };
+    const copyBtn = document.getElementById('copy-receipt-btn');
+    if (copyBtn) {
+        copyBtn.onclick = function() {
+            const receiptText = `Receipt #${sale.id}\nDate: ${new Date(sale.date).toLocaleString()}\nPayment Method: ${sale.paymentMethod.toUpperCase()}\nShift ID: ${sale.shiftId || 'N/A'}\n\nItems:\n${
+                sale.items.map(item => `${item.name} - ${item.quantity} × ${item.price} RWF = ${item.price * item.quantity} RWF`).join('\n')
+            }\n\nGrand Total: ${sale.total} RWF`;
+            
+            navigator.clipboard.writeText(receiptText).then(() => {
+                alert('Receipt copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy receipt: ', err);
+                alert('Failed to copy receipt. Please try again.');
+            });
+        };
+    }
 
     modal.style.display = 'block';
 }
 
 // Close modal when clicking the X
-document.querySelector('.close').addEventListener('click', function() {
-    document.getElementById('receipt-modal').style.display = 'none';
-});
+const closeBtn = document.querySelector('.close');
+if (closeBtn) {
+    closeBtn.addEventListener('click', function() {
+        const modal = document.getElementById('receipt-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    });
+}
 
 // Close modal when clicking outside
 window.addEventListener('click', function(event) {
@@ -618,23 +674,36 @@ window.addEventListener('click', function(event) {
 
 function initSummaryTab() {
     // Set up date range filter
-    document.getElementById('filter-summary-btn').addEventListener('click', loadSummary);
+    const filterBtn = document.getElementById('filter-summary-btn');
+    if (filterBtn) {
+        filterBtn.addEventListener('click', loadSummary);
+    }
     
     // Set default date range (today)
     const today = new Date().toISOString().split('T')[0];
-    document.getElementById('start-date').value = today;
-    document.getElementById('end-date').value = today;
+    const startDate = document.getElementById('start-date');
+    const endDate = document.getElementById('end-date');
+    
+    if (startDate) startDate.value = today;
+    if (endDate) endDate.value = today;
     
     // Set up WhatsApp summary button
-    document.getElementById('whatsapp-summary-btn').addEventListener('click', sendWhatsAppDateSummary);
+    const whatsappBtn = document.getElementById('whatsapp-summary-btn');
+    if (whatsappBtn) {
+        whatsappBtn.addEventListener('click', sendWhatsAppDateSummary);
+    }
 }
 
 function loadSummary() {
     const summaryContent = document.getElementById('summary-content');
+    if (!summaryContent) return;
+    
     summaryContent.innerHTML = '';
 
-    const startDate = document.getElementById('start-date').value;
-    const endDate = document.getElementById('end-date').value;
+    const startDateElem = document.getElementById('start-date');
+    const endDateElem = document.getElementById('end-date');
+    const startDate = startDateElem ? startDateElem.value : '';
+    const endDate = endDateElem ? endDateElem.value : '';
     const sales = getSales();
 
     // Filter sales by date range and exclude refunded sales
@@ -753,8 +822,10 @@ function loadSummary() {
 }
 
 function sendWhatsAppDateSummary() {
-    const startDate = document.getElementById('start-date').value;
-    const endDate = document.getElementById('end-date').value;
+    const startDateElem = document.getElementById('start-date');
+    const endDateElem = document.getElementById('end-date');
+    const startDate = startDateElem ? startDateElem.value : '';
+    const endDate = endDateElem ? endDateElem.value : '';
     const sales = getSales().filter(sale => {
         if (sale.refunded) return false;
         const saleDate = sale.date.split('T')[0];
@@ -872,7 +943,10 @@ function getDailySalesBreakdown(startDate, endDate) {
 
 function initStockTab() {
     // Set up add item button
-    document.getElementById('add-item-btn').addEventListener('click', addStockItem);
+    const addBtn = document.getElementById('add-item-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', addStockItem);
+    }
     
     // Load stock items
     loadStockItems();
@@ -880,6 +954,8 @@ function initStockTab() {
 
 function loadStockItems() {
     const stockItemsContainer = document.getElementById('stock-items');
+    if (!stockItemsContainer) return;
+    
     stockItemsContainer.innerHTML = '';
 
     const products = getProducts();
@@ -910,23 +986,27 @@ function loadStockItems() {
     });
 
     // Add event listeners to edit and delete buttons
-    document.querySelectorAll('.edit-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const productId = e.target.closest('button').getAttribute('data-id');
-            editStockItem(productId);
+    setTimeout(() => {
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const productId = e.target.closest('button').getAttribute('data-id');
+                editStockItem(productId);
+            });
         });
-    });
 
-    document.querySelectorAll('.delete-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const productId = e.target.closest('button').getAttribute('data-id');
-            deleteStockItem(productId);
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const productId = e.target.closest('button').getAttribute('data-id');
+                deleteStockItem(productId);
+            });
         });
-    });
+    }, 100);
 }
 
 function checkLowStock() {
     const lowStockAlerts = document.getElementById('low-stock-alerts');
+    if (!lowStockAlerts) return;
+    
     lowStockAlerts.innerHTML = '';
     
     const products = getProducts();
@@ -953,6 +1033,8 @@ function addStockItem() {
     const nameInput = document.getElementById('item-name');
     const priceInput = document.getElementById('item-price');
     const quantityInput = document.getElementById('item-quantity');
+    
+    if (!nameInput || !priceInput || !quantityInput) return;
     
     const name = nameInput.value.trim();
     const price = parseFloat(priceInput.value);
@@ -1090,9 +1172,11 @@ function deleteStockItem(productId) {
 
 function initShiftTab() {
     // Set up shift buttons
-    document.getElementById('start-shift-btn').addEventListener('click', startShift);
-    document.getElementById('end-shift-btn').addEventListener('click', endShift);
-    document.getElementById('send-whatsapp-btn').addEventListener('click', sendWhatsAppSummary);
+    const startBtn = document.getElementById('start-shift-btn');
+    const endBtn = document.getElementById('end-shift-btn');
+    
+    if (startBtn) startBtn.addEventListener('click', startShift);
+    if (endBtn) endBtn.addEventListener('click', endShift);
 }
 
 function checkActiveShift() {
@@ -1103,22 +1187,21 @@ function checkActiveShift() {
     const checkoutBtn = document.getElementById('checkout-btn');
     const shiftAlert = document.getElementById('shift-closed-alert');
     
-    if (activeShift) {
-        shiftStatus.className = 'shift-status shift-on';
-        shiftStatus.innerHTML = `<i class="fas fa-user-clock"></i> Shift: Active (Started ${new Date(activeShift.startTime).toLocaleTimeString()})`;
-        startBtn.disabled = true;
-        endBtn.disabled = false;
-        checkoutBtn.disabled = getCart().length === 0;
-        shiftAlert.style.display = 'none';
-    } else {
-        shiftStatus.className = 'shift-status shift-off';
-        shiftStatus.innerHTML = '<i class="fas fa-user-clock"></i> Shift: Not Started';
-        startBtn.disabled = false;
-        endBtn.disabled = true;
-        checkoutBtn.disabled = true;
-        if (getCart().length > 0) {
-            shiftAlert.style.display = 'block';
+    if (shiftStatus) {
+        if (activeShift) {
+            shiftStatus.className = 'shift-status shift-on';
+            shiftStatus.innerHTML = `<i class="fas fa-user-clock"></i> Shift: Active (Started ${new Date(activeShift.startTime).toLocaleTimeString()})`;
+        } else {
+            shiftStatus.className = 'shift-status shift-off';
+            shiftStatus.innerHTML = '<i class="fas fa-user-clock"></i> Shift: Not Started';
         }
+    }
+    
+    if (startBtn) startBtn.disabled = !!activeShift;
+    if (endBtn) endBtn.disabled = !activeShift;
+    if (checkoutBtn) checkoutBtn.disabled = getCart().length === 0 || !activeShift;
+    if (shiftAlert) {
+        shiftAlert.style.display = (getCart().length > 0 && !activeShift) ? 'block' : 'none';
     }
 }
 
@@ -1134,7 +1217,7 @@ function startShift() {
         cashTotal: 0,
         momoTotal: 0,
         total: 0,
-        Cashier: cashierName,
+        cashier: cashierName,
         startingCash: startingCash
     };
 
@@ -1142,7 +1225,7 @@ function startShift() {
     checkActiveShift();
     updateShiftDisplay();
     
-    alert(`Shift #${activeShift.id} started at ${new Date(activeShift.startTime).toLocaleTimeString()}\nCashier: ${activeShift.Cashier}`);
+    alert(`Shift #${activeShift.id} started at ${new Date(activeShift.startTime).toLocaleTimeString()}\nCashier: ${activeShift.cashier}`);
 }
 
 function endShift() {
@@ -1170,21 +1253,47 @@ function endShift() {
     updateShiftDisplay();
     
     // Show WhatsApp button
-    document.getElementById('whatsapp-section').style.display = 'block';
+    const whatsappSection = document.getElementById('whatsapp-section');
+    if (whatsappSection) {
+        whatsappSection.style.display = 'block';
+    }
     
     alert(`Shift #${activeShift.id} ended at ${new Date(activeShift.endTime).toLocaleTimeString()}\nTotal Sales: ${activeShift.total} RWF`);
 }
 
 function updateShiftDisplay() {
     const shiftSummary = document.getElementById('shift-summary');
+    if (!shiftSummary) return;
+    
     const activeShift = getActiveShift();
     const shiftHistory = getShiftHistory();
 
     // Always show shift history section
     shiftSummary.innerHTML = '<h3><i class="fas fa-history"></i> Shift History</h3>';
     
+    // Add export buttons at the top
     if (shiftHistory.length > 0) {
-        // Add filter controls
+        shiftSummary.innerHTML += `
+            <div style="margin-bottom: 20px;">
+                <button id="export-image-btn" class="btn" style="background-color: #e67e22;">
+                    <i class="fas fa-image"></i> Export Last Shift as Image
+                </button>
+                <button id="whatsapp-report-btn" class="btn" style="background-color: #25D366;">
+                    <i class="fab fa-whatsapp"></i> Send to WhatsApp
+                </button>
+            </div>
+        `;
+        
+        // Add event listeners for new buttons
+        setTimeout(() => {
+            const exportBtn = document.getElementById('export-image-btn');
+            const whatsappBtn = document.getElementById('whatsapp-report-btn');
+            if (exportBtn) exportBtn.addEventListener('click', exportShiftSummaryAsImage);
+            if (whatsappBtn) whatsappBtn.addEventListener('click', sendWhatsAppSummary);
+        }, 100);
+    }
+    
+    if (shiftHistory.length > 0) {
         shiftSummary.innerHTML += `
             <div class="shift-filters">
                 <input type="date" id="shift-start-date" placeholder="Start date">
@@ -1222,31 +1331,56 @@ function updateShiftDisplay() {
         loadShiftHistoryPage(1);
         
         // Add event listeners
-        document.getElementById('apply-shift-filters').addEventListener('click', () => {
-            loadShiftHistoryPage(1);
-        });
-        
-        document.getElementById('clear-shift-filters').addEventListener('click', () => {
-            document.getElementById('shift-start-date').value = '';
-            document.getElementById('shift-end-date').value = '';
-            document.getElementById('shift-cashier-filter').value = '';
-            loadShiftHistoryPage(1);
-        });
-        
-        document.getElementById('prev-shift-page').addEventListener('click', () => {
-            const currentPage = parseInt(document.getElementById('shift-page-info').textContent.match(/Page (\d+)/)[1]);
-            if (currentPage > 1) {
-                loadShiftHistoryPage(currentPage - 1);
+        setTimeout(() => {
+            const applyBtn = document.getElementById('apply-shift-filters');
+            const clearBtn = document.getElementById('clear-shift-filters');
+            const prevBtn = document.getElementById('prev-shift-page');
+            const nextBtn = document.getElementById('next-shift-page');
+            
+            if (applyBtn) {
+                applyBtn.addEventListener('click', () => {
+                    loadShiftHistoryPage(1);
+                });
             }
-        });
-        
-        document.getElementById('next-shift-page').addEventListener('click', () => {
-            const currentPage = parseInt(document.getElementById('shift-page-info').textContent.match(/Page (\d+)/)[1]);
-            const totalPages = parseInt(document.getElementById('shift-page-info').textContent.match(/of (\d+)/)[1]);
-            if (currentPage < totalPages) {
-                loadShiftHistoryPage(currentPage + 1);
+            
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    const startDate = document.getElementById('shift-start-date');
+                    const endDate = document.getElementById('shift-end-date');
+                    const cashierFilter = document.getElementById('shift-cashier-filter');
+                    
+                    if (startDate) startDate.value = '';
+                    if (endDate) endDate.value = '';
+                    if (cashierFilter) cashierFilter.value = '';
+                    loadShiftHistoryPage(1);
+                });
             }
-        });
+            
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    const pageInfo = document.getElementById('shift-page-info');
+                    if (pageInfo) {
+                        const currentPage = parseInt(pageInfo.textContent.match(/Page (\d+)/)[1]);
+                        if (currentPage > 1) {
+                            loadShiftHistoryPage(currentPage - 1);
+                        }
+                    }
+                });
+            }
+            
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    const pageInfo = document.getElementById('shift-page-info');
+                    if (pageInfo) {
+                        const currentPage = parseInt(pageInfo.textContent.match(/Page (\d+)/)[1]);
+                        const totalPages = parseInt(pageInfo.textContent.match(/of (\d+)/)[1]);
+                        if (currentPage < totalPages) {
+                            loadShiftHistoryPage(currentPage + 1);
+                        }
+                    }
+                });
+            }
+        }, 100);
     } else {
         shiftSummary.innerHTML += '<p class="no-shift">No shift history found.</p>';
     }
@@ -1296,7 +1430,7 @@ function updateShiftDisplay() {
             <div class="current-shift-summary">
                 <h3><i class="fas fa-clipboard-list"></i> Current Shift</h3>
                 <p><i class="fas fa-id-badge"></i> Shift ID: ${activeShift.id}</p>
-                <p><i class="fas fa-user"></i> Cashier: ${activeShift.Cashier || 'Cashier'}</p>
+                <p><i class="fas fa-user"></i> Cashier: ${activeShift.cashier || 'Cashier'}</p>
                 <p><i class="fas fa-play"></i> Started: ${new Date(activeShift.startTime).toLocaleString()}</p>
                 <p><i class="fas fa-coins"></i> Total Sales: ${activeShift.total} RWF</p>
                 <p><i class="fas fa-money-bill-wave"></i> Cash: ${activeShift.cashTotal} RWF</p>
@@ -1331,9 +1465,13 @@ function loadShiftHistoryPage(pageNumber) {
     const shiftHistory = getShiftHistory();
     
     // Apply filters
-    const startDateFilter = document.getElementById('shift-start-date').value;
-    const endDateFilter = document.getElementById('shift-end-date').value;
-    const cashierFilter = document.getElementById('shift-cashier-filter').value.toLowerCase();
+    const startDateElem = document.getElementById('shift-start-date');
+    const endDateElem = document.getElementById('shift-end-date');
+    const cashierFilterElem = document.getElementById('shift-cashier-filter');
+    
+    const startDateFilter = startDateElem ? startDateElem.value : '';
+    const endDateFilter = endDateElem ? endDateElem.value : '';
+    const cashierFilter = cashierFilterElem ? cashierFilterElem.value.toLowerCase() : '';
     
     let filteredShifts = [...shiftHistory].reverse();
     
@@ -1347,7 +1485,7 @@ function loadShiftHistoryPage(pageNumber) {
     
     if (cashierFilter) {
         filteredShifts = filteredShifts.filter(shift => 
-            shift.Cashier && shift.Cashier.toLowerCase().includes(cashierFilter)
+            shift.cashier && shift.cashier.toLowerCase().includes(cashierFilter)
         );
     }
     
@@ -1359,6 +1497,8 @@ function loadShiftHistoryPage(pageNumber) {
     
     // Update table
     const tbody = document.getElementById('shift-history-body');
+    if (!tbody) return;
+    
     tbody.innerHTML = '';
     
     pageShifts.forEach(shift => {
@@ -1367,7 +1507,7 @@ function loadShiftHistoryPage(pageNumber) {
         row.setAttribute('data-id', shift.id);
         row.innerHTML = `
             <td>${shift.date}</td>
-            <td>${shift.Cashier || 'Cashier'}</td>
+            <td>${shift.cashier || 'Cashier'}</td>
             <td>${shift.duration}</td>
             <td>${shift.total} RWF</td>
             <td>${shift.sales ? shift.sales.length : 0}</td>
@@ -1378,20 +1518,27 @@ function loadShiftHistoryPage(pageNumber) {
     });
     
     // Update pagination info
-    document.getElementById('shift-page-info').textContent = `Page ${pageNumber} of ${totalPages}`;
+    const pageInfo = document.getElementById('shift-page-info');
+    if (pageInfo) {
+        pageInfo.textContent = `Page ${pageNumber} of ${totalPages}`;
+    }
     
     // Disable/enable pagination buttons
-    document.getElementById('prev-shift-page').disabled = pageNumber <= 1;
-    document.getElementById('next-shift-page').disabled = pageNumber >= totalPages;
+    const prevBtn = document.getElementById('prev-shift-page');
+    const nextBtn = document.getElementById('next-shift-page');
+    if (prevBtn) prevBtn.disabled = pageNumber <= 1;
+    if (nextBtn) nextBtn.disabled = pageNumber >= totalPages;
     
     // Add click handler for view buttons
-    document.querySelectorAll('.view-shift-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const shiftId = button.getAttribute('data-id');
-            viewShiftDetails(shiftId);
+    setTimeout(() => {
+        document.querySelectorAll('.view-shift-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const shiftId = button.getAttribute('data-id');
+                viewShiftDetails(shiftId);
+            });
         });
-    });
+    }, 100);
 }
 
 function viewShiftDetails(shiftId) {
@@ -1424,7 +1571,7 @@ function viewShiftDetails(shiftId) {
     // Format details
     let detailsHtml = `
         <h3><i class="fas fa-clipboard-list"></i> Shift Details #${shift.id}</h3>
-        <p><i class="fas fa-user"></i> Cashier: ${shift.Cashier || 'Cashier'}</p>
+        <p><i class="fas fa-user"></i> Cashier: ${shift.cashier || 'Cashier'}</p>
         <p><i class="fas fa-play"></i> Started: ${new Date(shift.startTime).toLocaleString()}</p>
         <p><i class="fas fa-stop"></i> Ended: ${shift.endTime ? new Date(shift.endTime).toLocaleString() : 'Still active'}</p>
         <p><i class="fas fa-clock"></i> Duration: ${shift.endTime ? formatDuration(shift.startTime, shift.endTime) : 'Ongoing'}</p>
@@ -1482,6 +1629,9 @@ function viewShiftDetails(shiftId) {
         ` : ''}
         
         <div class="shift-detail-actions">
+            <button id="export-shift-image-btn" class="btn" style="background-color: #e67e22;">
+                <i class="fas fa-image"></i> Export as Image
+            </button>
             <button id="whatsapp-shift-btn" class="btn">
                 <i class="fab fa-whatsapp"></i> Send to WhatsApp
             </button>
@@ -1504,16 +1654,35 @@ function viewShiftDetails(shiftId) {
     document.body.appendChild(modal);
     modal.style.display = 'block';
     
+    // Add image export functionality
+    const exportBtn = modal.querySelector('#export-shift-image-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            const reportText = generateShiftSummaryText(shift);
+            createImageFromText(reportText, `shift-${shift.id}-summary.png`);
+        });
+    }
+    
     // Add WhatsApp button functionality
-    modal.querySelector('#whatsapp-shift-btn').addEventListener('click', () => {
-        generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses);
-    });
+    const whatsappBtn = modal.querySelector('#whatsapp-shift-btn');
+    if (whatsappBtn) {
+        whatsappBtn.addEventListener('click', () => {
+            generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses);
+        });
+    }
     
     // Add close handlers
-    const closeModal = () => modal.remove();
+    const closeModal = () => {
+        if (modal.parentNode) {
+            modal.remove();
+        }
+    };
     
-    modal.querySelector('.close').addEventListener('click', closeModal);
-    modal.querySelector('#close-details-btn').addEventListener('click', closeModal);
+    const closeBtn = modal.querySelector('.close');
+    const closeDetailsBtn = modal.querySelector('#close-details-btn');
+    
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (closeDetailsBtn) closeDetailsBtn.addEventListener('click', closeModal);
     
     window.addEventListener('click', (event) => {
         if (event.target === modal) {
@@ -1522,155 +1691,22 @@ function viewShiftDetails(shiftId) {
     });
 }
 
-function sendWhatsAppSummary() {
-    const lastShift = getShiftHistory()[getShiftHistory().length - 1];
-    if (!lastShift) {
-        alert('No shift history found!');
-        return;
-    }
-
-    // Calculate duration
-    const duration = formatDuration(lastShift.startTime, lastShift.endTime);
-    
-    // Get sales data
-    const sales = getSales().filter(sale => lastShift.sales.includes(sale.id));
-    const products = getProducts();
-    
-    // Calculate item breakdown with price and total
-    const itemBreakdown = {};
-    sales.forEach(sale => {
-        sale.items.forEach(item => {
-            if (!itemBreakdown[item.name]) {
-                itemBreakdown[item.name] = {
-                    quantity: 0,
-                    price: item.price,
-                    total: 0
-                };
-            }
-            itemBreakdown[item.name].quantity += item.quantity;
-            itemBreakdown[item.name].total += item.quantity * item.price;
-        });
-    });
-
-    // Sort items by quantity sold
-    const sortedItems = Object.entries(itemBreakdown)
-        .sort((a, b) => b[1].quantity - a[1].quantity);
-
-    // Get expenses
-    const expenses = getExpensesForShift(lastShift.id);
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    
-    // Calculate cash to deposit
-    const cashToDeposit = (lastShift.startingCash || 0) + lastShift.cashTotal - totalExpenses;
-
-    // Format WhatsApp message
-    let message = `*Shift Summary*\n\n`;
-    
-    // Header Info
-    message += `*Date:* ${new Date(lastShift.startTime).toISOString().split('T')[0]}\n`;
-    message += `*Cashier:* ${lastShift.Cashier || 'Cashier'}\n\n`;
-    
-    // Sales Overview
-    message += `*Total Sales:* ${lastShift.total} RWF\n`;
-    message += `- Cash: ${lastShift.cashTotal} RWF\n`;
-    message += `- MoMo: ${lastShift.momoTotal} RWF\n`;
-    message += `*Transactions:* ${lastShift.sales.length}\n\n`;
-    
-    // Expenses with notes
-    message += `*Expenses:* ${totalExpenses} RWF\n`;
-    expenses.forEach(expense => {
-        message += `- ${expense.name}: ${expense.amount} RWF`;
-        if (expense.notes) {
-            message += `\n  ${expense.notes}`;
-        }
-        message += `\n`;
-    });
-    message += `\n`;
-    
-    // Cash to deposit
-    message += `*Cash to deposit (after expenses):* ${cashToDeposit} RWF\n\n`;
-
-    // Footer
-    message += `_Report generated on ${new Date().toLocaleString()}_`;
-
-    // Handle offline case
-    if (!navigator.onLine) {
-        if (confirm('You are offline. Copy to clipboard instead?')) {
-            navigator.clipboard.writeText(message)
-                .then(() => alert('Report copied! Paste into WhatsApp when online.'))
-                .catch(() => alert('Failed to copy.'));
-        }
-        return;
-    }
-
-    // Open WhatsApp
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
-}
-
-function generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses) {
-    const duration = formatDuration(shift.startTime, shift.endTime);
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const cashToDeposit = (shift.startingCash || 0) + shift.cashTotal - totalExpenses;
-
-    // Sort items by quantity sold
-    const sortedItems = Object.entries(itemBreakdown)
-        .sort((a, b) => b[1].quantity - a[1].quantity);
-
-    let message = `*Shift Summary*\n\n`;
-    
-    // Header Info
-    message += `*Date:* ${new Date(shift.startTime).toISOString().split('T')[0]}\n`;
-    message += `*Cashier:* ${shift.Cashier || 'Cashier'}\n`;
-    message += `*Duration:* ${duration}\n\n`;
-    
-    // Sales Overview
-    message += `*Starting Cash:* ${shift.startingCash || 0} RWF\n`;
-    message += `*Cash Sales:* ${shift.cashTotal} RWF\n`;
-    message += `*MoMo Sales:* ${shift.momoTotal} RWF\n`;
-    message += `*Total Sales:* ${shift.total} RWF\n`;
-    message += `*Transactions:* ${shift.sales.length}\n`;
-    message += `*Refunds:* ${shift.refunds ? shift.refunds.length : 0}\n`;
-    message += `*Expenses:* ${totalExpenses} RWF\n\n`;
-    
-    // Top Sellers
-    message += `*Top Sellers*\n`;
-    sortedItems.slice(0, 5).forEach(([name, data], index) => {
-        message += `${index + 1}. ${name}: ${data.quantity} sold\n`;
-    });
-    message += `\n`;
-    
-    // Cash to deposit
-    message += `*Cash to deposit:* ${cashToDeposit} RWF\n\n`;
-
-    // Footer
-    message += `_Report generated on ${new Date().toLocaleString()}_`;
-
-    // Handle offline case
-    if (!navigator.onLine) {
-        if (confirm('You are offline. Copy to clipboard instead?')) {
-            navigator.clipboard.writeText(message)
-                .then(() => alert('Report copied! Paste into WhatsApp when online.'))
-                .catch(() => alert('Failed to copy.'));
-        }
-        return;
-    }
-
-    // Open WhatsApp
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
-}
-
 // ======================
 // EXPENSES TAB FUNCTIONS
 // ======================
 
 function initExpensesTab() {
     // Set up add expense button
-    document.getElementById('add-expense-btn').addEventListener('click', addExpenseHandler);
+    const addBtn = document.getElementById('add-expense-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', addExpenseHandler);
+    }
     
     // Load expenses when tab is shown
-    document.querySelector('.tab-btn[data-tab="expenses"]').addEventListener('click', loadExpenses);
+    const expensesTab = document.querySelector('.tab-btn[data-tab="expenses"]');
+    if (expensesTab) {
+        expensesTab.addEventListener('click', loadExpenses);
+    }
 }
 
 function addExpenseHandler() {
@@ -1680,9 +1716,15 @@ function addExpenseHandler() {
         return;
     }
 
-    const name = document.getElementById('expense-name').value.trim();
-    const amount = parseFloat(document.getElementById('expense-amount').value) || 0;
-    const notes = document.getElementById('expense-notes').value.trim();
+    const nameInput = document.getElementById('expense-name');
+    const amountInput = document.getElementById('expense-amount');
+    const notesInput = document.getElementById('expense-notes');
+    
+    if (!nameInput || !amountInput || !notesInput) return;
+    
+    const name = nameInput.value.trim();
+    const amount = parseFloat(amountInput.value) || 0;
+    const notes = notesInput.value.trim();
     
     // Check if this is a note-only entry (only notes field has content)
     const isNoteOnly = notes && (!name && amount === 0);
@@ -1706,13 +1748,15 @@ function addExpenseHandler() {
     loadExpenses();
     
     // Clear inputs
-    document.getElementById('expense-name').value = '';
-    document.getElementById('expense-amount').value = '';
-    document.getElementById('expense-notes').value = '';
+    nameInput.value = '';
+    amountInput.value = '';
+    notesInput.value = '';
 }
 
 function loadExpenses() {
     const expensesList = document.getElementById('expenses-list');
+    if (!expensesList) return;
+    
     expensesList.innerHTML = '';
     
     const activeShift = getActiveShift();
@@ -1794,15 +1838,17 @@ function loadExpenses() {
     });
     
     // Add event listeners to delete buttons
-    document.querySelectorAll('.delete-expense-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const expenseId = parseInt(e.currentTarget.getAttribute('data-id'));
-            if (confirm('Are you sure you want to delete this entry?')) {
-                deleteExpense(expenseId);
-                loadExpenses();
-            }
+    setTimeout(() => {
+        document.querySelectorAll('.delete-expense-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const expenseId = parseInt(e.currentTarget.getAttribute('data-id'));
+                if (confirm('Are you sure you want to delete this entry?')) {
+                    deleteExpense(expenseId);
+                    loadExpenses();
+                }
+            });
         });
-    });
+    }, 100);
 }
 
 function addExpense(name = "", amount = 0, notes = '', noteOnly = false) {
@@ -1863,100 +1909,589 @@ function getExpensesForShift(shiftId) {
 }
 
 // ======================
+// IMAGE EXPORT FUNCTIONS
+// ======================
+
+function exportShiftSummaryAsImage() {
+    const lastShift = getShiftHistory()[getShiftHistory().length - 1];
+    if (!lastShift) {
+        alert('No shift history found!');
+        return;
+    }
+
+    // Generate the report text
+    const reportText = generateShiftSummaryText(lastShift);
+    
+    // Create image from text
+    createImageFromText(reportText, `shift-summary-${lastShift.id}.png`);
+}
+
+function generateShiftSummaryText(shift) {
+    // Calculate duration
+    const duration = formatDuration(shift.startTime, shift.endTime);
+    
+    // Get sales data
+    const sales = getSales().filter(sale => shift.sales.includes(sale.id));
+    const products = getProducts();
+    
+    // Calculate item breakdown with price and total
+    const itemBreakdown = {};
+    sales.forEach(sale => {
+        sale.items.forEach(item => {
+            if (!itemBreakdown[item.name]) {
+                itemBreakdown[item.name] = {
+                    quantity: 0,
+                    price: item.price,
+                    total: 0
+                };
+            }
+            itemBreakdown[item.name].quantity += item.quantity;
+            itemBreakdown[item.name].total += item.quantity * item.price;
+        });
+    });
+
+    // Sort items by quantity sold
+    const sortedItems = Object.entries(itemBreakdown)
+        .sort((a, b) => b[1].quantity - a[1].quantity);
+
+    // Get expenses
+    const expenses = getExpensesForShift(shift.id);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    
+    // Calculate cash to deposit
+    const cashToDeposit = (shift.startingCash || 0) + shift.cashTotal - totalExpenses;
+
+    // Format report text
+    let reportText = `SHIFT SUMMARY\n\n`;
+    
+    // Header Info
+    reportText += `Date: ${new Date(shift.startTime).toISOString().split('T')[0]}\n`;
+    reportText += `Cashier: ${shift.cashier || 'Cashier'}\n`;
+    reportText += `Start Time: ${new Date(shift.startTime).toLocaleTimeString()}\n`;
+    reportText += `End Time: ${new Date(shift.endTime).toLocaleTimeString()}\n`;
+    reportText += `Duration: ${duration}\n\n`;
+    
+    // Sales Overview
+    reportText += `Starting Cash: ${shift.startingCash || 0} RWF\n`;
+    reportText += `• Cash: ${shift.cashTotal} RWF\n`;
+    reportText += `• MoMo: ${shift.momoTotal} RWF\n`;
+    reportText += `Total Sales: ${shift.total} RWF\n`;
+    reportText += `Transactions: ${shift.sales.length}\n`;
+    reportText += `Refunds: ${shift.refunds ? shift.refunds.length : 0}\n`;
+    reportText += `Expenses: ${totalExpenses} RWF\n\n`;
+    
+    // Top 5 Sellers
+    reportText += `TOP 5 SELLERS\n`;
+    sortedItems.slice(0, 5).forEach(([name, data], index) => {
+        reportText += `${index + 1}. ${name} : ${data.quantity} sold\n`;
+    });
+    reportText += `\n`;
+    
+    // All Items Sold
+    reportText += `ALL ITEMS SOLD\n\n`;
+    sortedItems.forEach(([name, data]) => {
+        const product = products.find(p => p.name === name);
+        reportText += `→ ${name}\n`;
+        reportText += `   Sold: ${data.quantity}\n`;
+        reportText += `   Price: ${data.price} RWF\n`;
+        reportText += `   Total: ${data.total} RWF\n`;
+        
+        // Only show stock left if item is not unlimited
+        if (product && product.quantity !== 'unlimited') {
+            reportText += `   Stock Left: ${product.quantity}\n`;
+        }
+        reportText += `\n`;
+    });
+
+    // Expense Details
+    if (expenses.length > 0) {
+        reportText += `EXPENSE DETAILS\n`;
+        expenses.forEach(expense => {
+            if (!expense.noteOnly) {
+                reportText += `• ${expense.name}: ${expense.amount} RWF\n`;
+            }
+        });
+        reportText += `\n`;
+    }
+    
+    // Cash to deposit
+    reportText += `Cash to deposit (after expenses): ${cashToDeposit} RWF\n\n`;
+
+    // Footer
+    reportText += `Report generated on ${new Date().toLocaleString()}`;
+
+    return reportText;
+}
+
+function createImageFromText(text, filename) {
+    try {
+        // Create a canvas element
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        canvas.width = 800;
+        canvas.height = 1200;
+        
+        // Set background color
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Set text styles
+        ctx.fillStyle = '#333333';
+        ctx.font = '16px Arial, sans-serif';
+        ctx.textBaseline = 'top';
+        
+        // Split text into lines and draw
+        const lines = text.split('\n');
+        const lineHeight = 24;
+        const margin = 40;
+        let y = margin;
+        
+        // Draw header with different style
+        ctx.fillStyle = '#2c3e50';
+        ctx.font = 'bold 20px Arial, sans-serif';
+        ctx.fillText('ROYAL BAKES POS REPORT', margin, y);
+        y += lineHeight * 2;
+        
+        // Reset font for body
+        ctx.fillStyle = '#333333';
+        ctx.font = '16px Arial, sans-serif';
+        
+        // Draw all lines
+        lines.forEach((line, index) => {
+            // Skip empty lines at the beginning
+            if (index === 0 && line === 'SHIFT SUMMARY') {
+                y += lineHeight;
+                return;
+            }
+            
+            // Handle section headers
+            if (line === 'TOP 5 SELLERS' || line === 'ALL ITEMS SOLD' || line === 'EXPENSE DETAILS') {
+                y += lineHeight;
+                ctx.fillStyle = '#e67e22';
+                ctx.font = 'bold 18px Arial, sans-serif';
+                ctx.fillText(line, margin, y);
+                y += lineHeight;
+                ctx.fillStyle = '#333333';
+                ctx.font = '16px Arial, sans-serif';
+                return;
+            }
+            
+            // Handle item headers
+            if (line.startsWith('→ ')) {
+                ctx.fillStyle = '#2c3e50';
+                ctx.font = 'bold 16px Arial, sans-serif';
+                ctx.fillText(line, margin, y);
+                y += lineHeight;
+                ctx.fillStyle = '#333333';
+                ctx.font = '16px Arial, sans-serif';
+                return;
+            }
+            
+            // Handle footer
+            if (line.startsWith('Report generated')) {
+                y += lineHeight;
+                ctx.fillStyle = '#7f8c8d';
+                ctx.font = 'italic 14px Arial, sans-serif';
+                ctx.fillText(line, margin, y);
+                y += lineHeight;
+                return;
+            }
+            
+            // Regular lines
+            if (line.trim() !== '') {
+                // Wrap long lines
+                const words = line.split(' ');
+                let currentLine = '';
+                
+                for (let i = 0; i < words.length; i++) {
+                    const testLine = currentLine + words[i] + ' ';
+                    const metrics = ctx.measureText(testLine);
+                    const testWidth = metrics.width;
+                    
+                    if (testWidth > (canvas.width - 2 * margin) && i > 0) {
+                        ctx.fillText(currentLine, margin, y);
+                        currentLine = words[i] + ' ';
+                        y += lineHeight;
+                    } else {
+                        currentLine = testLine;
+                    }
+                }
+                
+                if (currentLine) {
+                    ctx.fillText(currentLine, margin, y);
+                    y += lineHeight;
+                }
+            } else {
+                y += lineHeight / 2; // Smaller gap for empty lines
+            }
+            
+            // Check if we need to expand canvas
+            if (y > canvas.height - 100) {
+                const newHeight = canvas.height + 500;
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = newHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(canvas, 0, 0);
+                canvas.height = newHeight;
+                ctx.drawImage(tempCanvas, 0, 0);
+            }
+        });
+        
+        // Add border
+        ctx.strokeStyle = '#e67e22';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+        
+        // Convert to image and download
+        canvas.toBlob(function(blob) {
+            if (blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = url;
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 100);
+            }
+        });
+    } catch (error) {
+        console.error('Error creating image:', error);
+        alert('Error creating image. Please try again.');
+    }
+}
+
+// ======================
+// WHATSAPP REPORT FUNCTIONS
+// ======================
+
+function sendWhatsAppSummary() {
+    const lastShift = getShiftHistory()[getShiftHistory().length - 1];
+    if (!lastShift) {
+        alert('No shift history found!');
+        return;
+    }
+
+    // Calculate duration
+    const duration = formatDuration(lastShift.startTime, lastShift.endTime);
+    
+    // Get sales data
+    const sales = getSales().filter(sale => lastShift.sales.includes(sale.id));
+    const products = getProducts();
+    
+    // Calculate item breakdown with price and total
+    const itemBreakdown = {};
+    sales.forEach(sale => {
+        sale.items.forEach(item => {
+            if (!itemBreakdown[item.name]) {
+                itemBreakdown[item.name] = {
+                    quantity: 0,
+                    price: item.price,
+                    total: 0
+                };
+            }
+            itemBreakdown[item.name].quantity += item.quantity;
+            itemBreakdown[item.name].total += item.quantity * item.price;
+        });
+    });
+
+    // Sort items by quantity sold
+    const sortedItems = Object.entries(itemBreakdown)
+        .sort((a, b) => b[1].quantity - a[1].quantity);
+
+    // Get expenses
+    const expenses = getExpensesForShift(lastShift.id);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    
+    // Calculate cash to deposit
+    const cashToDeposit = (lastShift.startingCash || 0) + lastShift.cashTotal - totalExpenses;
+
+    // Format WhatsApp message with new format
+    let message = `*Shift Summary*\n\n`;
+    
+    // Header Info
+    message += `*Date:* ${new Date(lastShift.startTime).toISOString().split('T')[0]}\n`;
+    message += `*Cashier:* ${lastShift.cashier || 'Cashier'}\n`;
+    message += `*Start Time:* ${new Date(lastShift.startTime).toLocaleTimeString()}\n`;
+    message += `*End Time:* ${new Date(lastShift.endTime).toLocaleTimeString()}\n`;
+    message += `*Duration:* ${duration}\n\n`;
+    
+    // Sales Overview
+    message += `*Starting Cash:* ${lastShift.startingCash || 0} RWF\n`;
+    message += `- 💵 Cash: ${lastShift.cashTotal} RWF\n`;
+    message += `- 📱 MoMo: ${lastShift.momoTotal} RWF\n`;
+    message += `*Total Sales:* ${lastShift.total} RWF\n`;
+    message += `*Transactions:* ${lastShift.sales.length}\n`;
+    message += `*Refunds:* ${lastShift.refunds ? lastShift.refunds.length : 0}\n`;
+    message += `*Expenses:* ${totalExpenses} RWF\n\n`;
+    
+    // Top 5 Sellers
+    message += `🏆 *Top 5 Sellers*\n`;
+    sortedItems.slice(0, 5).forEach(([name, data], index) => {
+        message += `${index + 1}. ${name} : ${data.quantity} sold\n`;
+    });
+    message += `\n`;
+    
+    // All Items Sold
+    message += `🛒 *All Items Sold*\n\n`;
+    sortedItems.forEach(([name, data]) => {
+        const product = products.find(p => p.name === name);
+        message += `➤ ${name}\n`;
+        message += `   - Sold: ${data.quantity}\n`;
+        message += `   - Price: ${data.price} RWF\n`;
+        message += `   - Total: ${data.total} RWF\n`;
+        
+        // Only show stock left if item is not unlimited and has stock tracking
+        if (product && product.quantity !== 'unlimited') {
+            message += `   - Stock Left: ${product.quantity}\n`;
+        }
+        message += `\n`;
+    });
+
+    // Expense Details
+    if (expenses.length > 0) {
+        message += `💰 *Expense Details*\n`;
+        expenses.forEach(expense => {
+            if (!expense.noteOnly) {
+                message += `- ${expense.name}: ${expense.amount} RWF\n`;
+            }
+        });
+        message += `\n`;
+    }
+    
+    // Cash to deposit
+    message += `💳 *Cash to deposit (after expenses):* ${cashToDeposit} RWF\n\n`;
+
+    // Footer
+    message += `_Report generated on ${new Date().toLocaleString()}_`;
+
+    // Handle offline case
+    if (!navigator.onLine) {
+        if (confirm('You are offline. Copy to clipboard instead?')) {
+            navigator.clipboard.writeText(message)
+                .then(() => alert('Report copied! Paste into WhatsApp when online.'))
+                .catch(() => alert('Failed to copy.'));
+        }
+        return;
+    }
+
+    // Open WhatsApp
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+}
+
+function generateWhatsAppShiftSummary(shift, itemBreakdown, products, expenses) {
+    const duration = formatDuration(shift.startTime, shift.endTime);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const cashToDeposit = (shift.startingCash || 0) + shift.cashTotal - totalExpenses;
+
+    // Sort items by quantity sold
+    const sortedItems = Object.entries(itemBreakdown)
+        .sort((a, b) => b[1].quantity - a[1].quantity);
+
+    let message = `*Shift Summary*\n\n`;
+    
+    // Header Info
+    message += `*Date:* ${new Date(shift.startTime).toISOString().split('T')[0]}\n`;
+    message += `*Cashier:* ${shift.cashier || 'Cashier'}\n`;
+    message += `*Start Time:* ${new Date(shift.startTime).toLocaleTimeString()}\n`;
+    message += `*End Time:* ${new Date(shift.endTime).toLocaleTimeString()}\n`;
+    message += `*Duration:* ${duration}\n\n`;
+    
+    // Sales Overview
+    message += `*Starting Cash:* ${shift.startingCash || 0} RWF\n`;
+    message += `- 💵 Cash: ${shift.cashTotal} RWF\n`;
+    message += `- 📱 MoMo: ${shift.momoTotal} RWF\n`;
+    message += `*Total Sales:* ${shift.total} RWF\n`;
+    message += `*Transactions:* ${shift.sales.length}\n`;
+    message += `*Refunds:* ${shift.refunds ? shift.refunds.length : 0}\n`;
+    message += `*Expenses:* ${totalExpenses} RWF\n\n`;
+    
+    // Top 5 Sellers
+    message += `🏆 *Top 5 Sellers*\n`;
+    sortedItems.slice(0, 5).forEach(([name, data], index) => {
+        message += `${index + 1}. ${name} : ${data.quantity} sold\n`;
+    });
+    message += `\n`;
+    
+    // All Items Sold
+    message += `🛒 *All Items Sold*\n\n`;
+    sortedItems.forEach(([name, data]) => {
+        const product = products.find(p => p.name === name);
+        message += `➤ ${name}\n`;
+        message += `   - Sold: ${data.quantity}\n`;
+        message += `   - Price: ${data.price} RWF\n`;
+        message += `   - Total: ${data.total} RWF\n`;
+        
+        // Only show stock left if item is not unlimited and has stock tracking
+        if (product && product.quantity !== 'unlimited') {
+            message += `   - Stock Left: ${product.quantity}\n`;
+        }
+        message += `\n`;
+    });
+
+    // Expense Details
+    if (expenses.length > 0) {
+        message += `💰 *Expense Details*\n`;
+        expenses.forEach(expense => {
+            if (!expense.noteOnly) {
+                message += `- ${expense.name}: ${expense.amount} RWF\n`;
+            }
+        });
+        message += `\n`;
+    }
+    
+    // Cash to deposit
+    message += `💳 *Cash to deposit (after expenses):* ${cashToDeposit} RWF\n\n`;
+
+    // Footer
+    message += `_Report generated on ${new Date().toLocaleString()}_`;
+
+    // Handle offline case
+    if (!navigator.onLine) {
+        if (confirm('You are offline. Copy to clipboard instead?')) {
+            navigator.clipboard.writeText(message)
+                .then(() => alert('Report copied! Paste into WhatsApp when online.'))
+                .catch(() => alert('Failed to copy.'));
+        }
+        return;
+    }
+
+    // Open WhatsApp
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+}
+
+// ======================
 // HELPER FUNCTIONS
 // ======================
 
 function formatDateTime(isoString) {
-    const date = new Date(isoString);
-    return date.toLocaleString([], {
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    try {
+        const date = new Date(isoString);
+        return date.toLocaleString([], {
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        return 'Invalid Date';
+    }
 }
 
 function formatDuration(start, end) {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const diffMs = endDate - startDate;
-    
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return `${hours}h ${minutes}m`;
+    try {
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        const diffMs = endDate - startDate;
+        
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        return `${hours}h ${minutes}m`;
+    } catch (error) {
+        return 'Unknown';
+    }
 }
 
 function getProducts() {
-    const products = localStorage.getItem('bakeryPosProducts');
-    return products ? JSON.parse(products) : [];
+    try {
+        const products = localStorage.getItem('bakeryPosProducts');
+        return products ? JSON.parse(products) : [];
+    } catch (error) {
+        console.error('Error loading products:', error);
+        return [];
+    }
 }
 
 function saveProducts(products) {
-    localStorage.setItem('bakeryPosProducts', JSON.stringify(products));
+    try {
+        localStorage.setItem('bakeryPosProducts', JSON.stringify(products));
+    } catch (error) {
+        console.error('Error saving products:', error);
+    }
 }
 
 function getActiveShift() {
-    const activeShift = localStorage.getItem('bakeryPosActiveShift');
-    return activeShift ? JSON.parse(activeShift) : null;
+    try {
+        const activeShift = localStorage.getItem('bakeryPosActiveShift');
+        return activeShift ? JSON.parse(activeShift) : null;
+    } catch (error) {
+        console.error('Error loading active shift:', error);
+        return null;
+    }
 }
 
 function saveActiveShift(shift) {
-    localStorage.setItem('bakeryPosActiveShift', JSON.stringify(shift));
+    try {
+        localStorage.setItem('bakeryPosActiveShift', JSON.stringify(shift));
+    } catch (error) {
+        console.error('Error saving active shift:', error);
+    }
 }
 
 function getShiftHistory() {
-    const history = localStorage.getItem('bakeryPosShiftHistory');
-    return history ? JSON.parse(history) : [];
+    try {
+        const history = localStorage.getItem('bakeryPosShiftHistory');
+        return history ? JSON.parse(history) : [];
+    } catch (error) {
+        console.error('Error loading shift history:', error);
+        return [];
+    }
 }
 
 function saveShiftHistory(history) {
-    const enhancedHistory = history.map(shift => {
-        return {
-            ...shift,
-            date: shift.startTime.split('T')[0],
-            duration: formatDuration(shift.startTime, shift.endTime),
-            operatorName: shift.Cashier || 'Cashier'
-        };
-    });
-    localStorage.setItem('bakeryPosShiftHistory', JSON.stringify(enhancedHistory));
+    try {
+        const enhancedHistory = history.map(shift => {
+            return {
+                ...shift,
+                date: shift.startTime.split('T')[0],
+                duration: formatDuration(shift.startTime, shift.endTime),
+                cashier: shift.cashier || 'Cashier'
+            };
+        });
+        localStorage.setItem('bakeryPosShiftHistory', JSON.stringify(enhancedHistory));
+    } catch (error) {
+        console.error('Error saving shift history:', error);
+    }
 }
 
 function getSales() {
-    const sales = localStorage.getItem('bakeryPosSales');
-    return sales ? JSON.parse(sales) : [];
+    try {
+        const sales = localStorage.getItem('bakeryPosSales');
+        return sales ? JSON.parse(sales) : [];
+    } catch (error) {
+        console.error('Error loading sales:', error);
+        return [];
+    }
 }
 
 function saveSales(sales) {
-    localStorage.setItem('bakeryPosSales', JSON.stringify(sales));
+    try {
+        localStorage.setItem('bakeryPosSales', JSON.stringify(sales));
+    } catch (error) {
+        console.error('Error saving sales:', error);
+    }
 }
 
 function getExpenses() {
-    const expenses = localStorage.getItem('bakeryPosExpenses');
-    return expenses ? JSON.parse(expenses) : [];
+    try {
+        const expenses = localStorage.getItem('bakeryPosExpenses');
+        return expenses ? JSON.parse(expenses) : [];
+    } catch (error) {
+        console.error('Error loading expenses:', error);
+        return [];
+    }
 }
 
 function saveExpenses(expenses) {
-    localStorage.setItem('bakeryPosExpenses', JSON.stringify(expenses));
-}
-
-function displayAdminMessage() {
     try {
-        const message = localStorage.getItem('bakeryPosAdminMessage');
-        const banner = document.getElementById('admin-message-banner');
-        const messageText = document.getElementById('admin-message-text');
-        
-        if (banner && messageText) {
-            if (message && message.trim() !== '') {
-                messageText.textContent = message;
-                banner.style.display = 'block';
-            } else {
-                banner.style.display = 'none';
-            }
-        }
+        localStorage.setItem('bakeryPosExpenses', JSON.stringify(expenses));
     } catch (error) {
-        console.log('Admin message error:', error);
+        console.error('Error saving expenses:', error);
     }
 }
 
