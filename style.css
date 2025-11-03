@@ -1,4 +1,3 @@
-
 :root {
     /* Modern Brand Colors */
     --primary-color: #4361ee;    /* Vibrant blue (main actions) */
@@ -23,6 +22,7 @@
     --stock-red: #d00000;        /* Red (out-of-stock) */
     --shift-active: #70e000;     /* Neon green (active shift) */
 }
+
 /* Cart Notification Styles - Now works on all screen sizes */
 .cart-notification {
     position: fixed;
@@ -63,6 +63,7 @@ body {
     margin: 0 auto;
     padding: 15px;
 }
+
 header {
     display: flex;
     justify-content: flex-end; /* Changed from space-between to flex-end */
@@ -71,6 +72,7 @@ header {
     padding-bottom: 10px;
     border-bottom: 1px solid #ddd;
 }
+
 h1 {
     color: var(--primary-color);
     display: flex;
@@ -597,6 +599,7 @@ nav {
     opacity: 0.7;
     border-left: 4px solid var(--danger-color);
 }
+
 /* ===== SHIFT HISTORY IMPROVEMENTS ===== */
 /* Current Shift Summary */
 .current-shift-summary {
@@ -727,6 +730,7 @@ nav {
         justify-content: flex-end;
     }
 }
+
 /* ===================== */
 /* EXPENSE ITEM STYLES */
 /* ===================== */
@@ -802,6 +806,7 @@ nav {
     color: #6c757d;
     padding: 20px;
 }
+
 .stock-quantity-input {
     padding: 8px;
     border: 1px solid #ddd;
