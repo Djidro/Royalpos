@@ -1909,7 +1909,7 @@ function getExpensesForShift(shiftId) {
 }
 
 // ======================
-// IMAGE EXPORT FUNCTIONS
+// IMAGE EXPORT FUNCTIONS (UPDATED FOR HD QUALITY)
 // ======================
 
 function exportShiftSummaryAsImage() {
@@ -1961,7 +1961,7 @@ function generateShiftSummaryText(shift) {
     // Calculate cash to deposit
     const cashToDeposit = (shift.startingCash || 0) + shift.cashTotal - totalExpenses;
 
-    // Format report text
+    // Format report text with better organization
     let reportText = `SHIFT SUMMARY\n\n`;
     
     // Header Info
@@ -1972,13 +1972,17 @@ function generateShiftSummaryText(shift) {
     reportText += `Duration: ${duration}\n\n`;
     
     // Sales Overview
+    reportText += `CASH FLOW\n`;
     reportText += `Starting Cash: ${shift.startingCash || 0} RWF\n`;
-    reportText += `• Cash: ${shift.cashTotal} RWF\n`;
-    reportText += `• MoMo: ${shift.momoTotal} RWF\n`;
+    reportText += `Cash Sales: ${shift.cashTotal} RWF\n`;
+    reportText += `MoMo Sales: ${shift.momoTotal} RWF\n`;
     reportText += `Total Sales: ${shift.total} RWF\n`;
-    reportText += `Transactions: ${shift.sales.length}\n`;
-    reportText += `Refunds: ${shift.refunds ? shift.refunds.length : 0}\n`;
-    reportText += `Expenses: ${totalExpenses} RWF\n\n`;
+    reportText += `Total Expenses: ${totalExpenses} RWF\n`;
+    reportText += `Net Cash: ${cashToDeposit} RWF\n\n`;
+    
+    reportText += `TRANSACTIONS\n`;
+    reportText += `Sales: ${shift.sales.length}\n`;
+    reportText += `Refunds: ${shift.refunds ? shift.refunds.length : 0}\n\n`;
     
     // Top 5 Sellers
     reportText += `TOP 5 SELLERS\n`;
@@ -2013,9 +2017,6 @@ function generateShiftSummaryText(shift) {
         });
         reportText += `\n`;
     }
-    
-    // Cash to deposit
-    reportText += `Cash to deposit (after expenses): ${cashToDeposit} RWF\n\n`;
 
     // Footer
     reportText += `Report generated on ${new Date().toLocaleString()}`;
@@ -2025,40 +2026,85 @@ function generateShiftSummaryText(shift) {
 
 function createImageFromText(text, filename) {
     try {
-        // Create a canvas element
+        // Create a canvas element with higher resolution
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        // Set canvas size
-        canvas.width = 800;
-        canvas.height = 1200;
+        // Get device pixel ratio for high DPI displays
+        const dpr = window.devicePixelRatio || 1;
+        
+        // Set larger base dimensions for HD output
+        const baseWidth = 1200;
+        const baseHeight = 1600;
+        
+        // Set canvas size with high DPI support
+        canvas.width = baseWidth * dpr;
+        canvas.height = baseHeight * dpr;
+        canvas.style.width = baseWidth + 'px';
+        canvas.style.height = baseHeight + 'px';
+        
+        // Scale context for high DPI
+        ctx.scale(dpr, dpr);
         
         // Set background color
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, baseWidth, baseHeight);
         
-        // Set text styles
-        ctx.fillStyle = '#333333';
-        ctx.font = '16px Arial, sans-serif';
-        ctx.textBaseline = 'top';
-        
-        // Split text into lines and draw
-        const lines = text.split('\n');
-        const lineHeight = 24;
-        const margin = 40;
+        // Set larger, clearer text styles
+        const margin = 60;
+        const lineHeight = 32; // Increased line height
         let y = margin;
         
-        // Draw header with different style
+        // Draw header with larger font
         ctx.fillStyle = '#2c3e50';
-        ctx.font = 'bold 20px Arial, sans-serif';
+        ctx.font = 'bold 28px "Arial", "Helvetica", sans-serif';
         ctx.fillText('ROYAL BAKES POS REPORT', margin, y);
         y += lineHeight * 2;
         
-        // Reset font for body
+        // Reset font for body with larger size
         ctx.fillStyle = '#333333';
-        ctx.font = '16px Arial, sans-serif';
+        ctx.font = '18px "Arial", "Helvetica", sans-serif';
         
-        // Draw all lines
+        // Split text into lines
+        const lines = text.split('\n');
+        
+        // Function to wrap text properly
+        const wrapText = (context, text, x, y, maxWidth, lineHeight) => {
+            const words = text.split(' ');
+            let line = '';
+            let testLine;
+            let testWidth;
+            
+            for(let n = 0; n < words.length; n++) {
+                testLine = line + words[n] + ' ';
+                testWidth = context.measureText(testLine).width;
+                
+                if (testWidth > maxWidth && n > 0) {
+                    context.fillText(line, x, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                    
+                    // Check if we need to expand canvas
+                    if (y > baseHeight - 100) {
+                        const additionalHeight = 500;
+                        const newHeight = baseHeight + additionalHeight;
+                        canvas.height = newHeight * dpr;
+                        canvas.style.height = newHeight + 'px';
+                        ctx.scale(dpr, dpr);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, baseHeight, baseWidth, additionalHeight);
+                        ctx.fillStyle = '#333333';
+                        ctx.font = '18px "Arial", "Helvetica", sans-serif';
+                    }
+                } else {
+                    line = testLine;
+                }
+            }
+            context.fillText(line, x, y);
+            return y + lineHeight;
+        };
+        
+        // Draw all lines with proper wrapping
         lines.forEach((line, index) => {
             // Skip empty lines at the beginning
             if (index === 0 && line === 'SHIFT SUMMARY') {
@@ -2067,25 +2113,23 @@ function createImageFromText(text, filename) {
             }
             
             // Handle section headers
-            if (line === 'TOP 5 SELLERS' || line === 'ALL ITEMS SOLD' || line === 'EXPENSE DETAILS') {
+            if (line === 'TOP 5 SELLERS' || line === 'ALL ITEMS SOLD' || line === 'EXPENSE DETAILS' || line === 'CASH FLOW' || line === 'TRANSACTIONS') {
                 y += lineHeight;
                 ctx.fillStyle = '#e67e22';
-                ctx.font = 'bold 18px Arial, sans-serif';
-                ctx.fillText(line, margin, y);
-                y += lineHeight;
+                ctx.font = 'bold 22px "Arial", "Helvetica", sans-serif';
+                y = wrapText(ctx, line, margin, y, baseWidth - 2 * margin, lineHeight);
                 ctx.fillStyle = '#333333';
-                ctx.font = '16px Arial, sans-serif';
+                ctx.font = '18px "Arial", "Helvetica", sans-serif';
                 return;
             }
             
-            // Handle item headers
+            // Handle item headers (→ symbol)
             if (line.startsWith('→ ')) {
                 ctx.fillStyle = '#2c3e50';
-                ctx.font = 'bold 16px Arial, sans-serif';
-                ctx.fillText(line, margin, y);
-                y += lineHeight;
+                ctx.font = 'bold 20px "Arial", "Helvetica", sans-serif';
+                y = wrapText(ctx, line, margin, y, baseWidth - 2 * margin, lineHeight);
                 ctx.fillStyle = '#333333';
-                ctx.font = '16px Arial, sans-serif';
+                ctx.font = '18px "Arial", "Helvetica", sans-serif';
                 return;
             }
             
@@ -2093,7 +2137,7 @@ function createImageFromText(text, filename) {
             if (line.startsWith('Report generated')) {
                 y += lineHeight;
                 ctx.fillStyle = '#7f8c8d';
-                ctx.font = 'italic 14px Arial, sans-serif';
+                ctx.font = 'italic 16px "Arial", "Helvetica", sans-serif';
                 ctx.fillText(line, margin, y);
                 y += lineHeight;
                 return;
@@ -2101,51 +2145,18 @@ function createImageFromText(text, filename) {
             
             // Regular lines
             if (line.trim() !== '') {
-                // Wrap long lines
-                const words = line.split(' ');
-                let currentLine = '';
-                
-                for (let i = 0; i < words.length; i++) {
-                    const testLine = currentLine + words[i] + ' ';
-                    const metrics = ctx.measureText(testLine);
-                    const testWidth = metrics.width;
-                    
-                    if (testWidth > (canvas.width - 2 * margin) && i > 0) {
-                        ctx.fillText(currentLine, margin, y);
-                        currentLine = words[i] + ' ';
-                        y += lineHeight;
-                    } else {
-                        currentLine = testLine;
-                    }
-                }
-                
-                if (currentLine) {
-                    ctx.fillText(currentLine, margin, y);
-                    y += lineHeight;
-                }
+                y = wrapText(ctx, line, margin, y, baseWidth - 2 * margin, lineHeight);
             } else {
                 y += lineHeight / 2; // Smaller gap for empty lines
-            }
-            
-            // Check if we need to expand canvas
-            if (y > canvas.height - 100) {
-                const newHeight = canvas.height + 500;
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = canvas.width;
-                tempCanvas.height = newHeight;
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCtx.drawImage(canvas, 0, 0);
-                canvas.height = newHeight;
-                ctx.drawImage(tempCanvas, 0, 0);
             }
         });
         
         // Add border
         ctx.strokeStyle = '#e67e22';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+        ctx.lineWidth = 4;
+        ctx.strokeRect(15, 15, baseWidth - 30, baseHeight - 30);
         
-        // Convert to image and download
+        // Convert to high-quality PNG
         canvas.toBlob(function(blob) {
             if (blob) {
                 const url = URL.createObjectURL(blob);
@@ -2155,7 +2166,8 @@ function createImageFromText(text, filename) {
                 link.click();
                 setTimeout(() => URL.revokeObjectURL(url), 100);
             }
-        });
+        }, 'image/png', 1.0); // Maximum quality
+        
     } catch (error) {
         console.error('Error creating image:', error);
         alert('Error creating image. Please try again.');
