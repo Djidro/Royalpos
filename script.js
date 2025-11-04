@@ -2053,72 +2053,82 @@ function createImageFromText(text, filename) {
         tempCanvas.height = baseHeight * dpr;
         tempCtx.scale(dpr, dpr);
         
-        // Set text styles for measurement
+        // Set text styles for measurement (same as final canvas)
         tempCtx.font = '18px "Arial", "Helvetica", sans-serif';
         const margin = 60;
         const lineHeight = 32;
         const maxWidth = baseWidth - 2 * margin;
         
+        // Function to calculate wrapped lines
+        const calculateWrappedLines = (context, text, maxWidth) => {
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = words[0] || '';
+            
+            for (let i = 1; i < words.length; i++) {
+                const word = words[i];
+                const width = context.measureText(currentLine + " " + word).width;
+                if (width < maxWidth) {
+                    currentLine += " " + word;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = word;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        };
+        
         // Calculate total height needed
         let totalHeight = margin;
         const lines = text.split('\n');
         
-        lines.forEach((line, index) => {
-            if (index === 0 && line === 'SHIFT SUMMARY') {
+        // Add header height
+        totalHeight += lineHeight * 2; // For "ROYAL BAKES POS REPORT"
+        
+        lines.forEach((line) => {
+            if (line.trim() === '') {
+                totalHeight += lineHeight / 2; // Empty lines
+                return;
+            }
+            
+            if (line === 'SHIFT SUMMARY') {
                 totalHeight += lineHeight;
                 return;
             }
             
-            if (line.trim() === '') {
-                totalHeight += lineHeight / 2;
-                return;
-            }
-            
             if (line === 'TOP 5 SELLERS' || line === 'ALL ITEMS SOLD' || line === 'EXPENSE DETAILS' || 
-                line === 'CASH FLOW' || line === 'TRANSACTIONS') {
-                totalHeight += lineHeight * 1.5;
+                line === 'CASH FLOW' || line === 'TRANSACTIONS' || line === 'FINAL SUMMARY') {
+                totalHeight += lineHeight * 1.5; // Section headers
                 return;
             }
             
             if (line.startsWith('→ ')) {
-                totalHeight += lineHeight * 1.2;
+                totalHeight += lineHeight * 1.2; // Item headers
                 return;
             }
             
             if (line.startsWith('Report generated')) {
-                totalHeight += lineHeight * 2;
+                totalHeight += lineHeight * 2; // Footer
                 return;
             }
             
-            // Calculate wrapped lines for this text
-            const words = line.split(' ');
-            let testLine = '';
-            let lineCount = 0;
-            
-            for(let n = 0; n < words.length; n++) {
-                testLine = words[n] + ' ';
-                const metrics = tempCtx.measureText(testLine);
-                const testWidth = metrics.width;
-                
-                if (testWidth > maxWidth) {
-                    lineCount += Math.ceil(testWidth / maxWidth);
-                } else {
-                    lineCount++;
-                }
-            }
-            
-            totalHeight += Math.max(1, lineCount) * lineHeight;
+            // Calculate actual wrapped lines for regular text
+            const wrappedLines = calculateWrappedLines(tempCtx, line, maxWidth);
+            totalHeight += wrappedLines.length * lineHeight;
         });
         
-        // Add extra padding at bottom
-        totalHeight += 100;
+        // Add extra padding at bottom (20% buffer)
+        totalHeight = Math.max(baseHeight, totalHeight * 1.2);
+        
+        console.log(`Calculated total height: ${totalHeight}px`);
         
         // Create final canvas with calculated height
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
         // Set canvas size with calculated height
-        const finalHeight = Math.max(baseHeight, totalHeight);
+        const finalHeight = Math.ceil(totalHeight);
         canvas.width = baseWidth * dpr;
         canvas.height = finalHeight * dpr;
         canvas.style.width = baseWidth + 'px';
@@ -2144,28 +2154,36 @@ function createImageFromText(text, filename) {
         ctx.fillStyle = '#333333';
         ctx.font = '18px "Arial", "Helvetica", sans-serif';
         
-        // Function to wrap text properly and return new y position
+        // Improved wrap text function
         const wrapText = (context, text, x, y, maxWidth, lineHeight) => {
             const words = text.split(' ');
-            let line = '';
+            let currentLine = '';
             let currentY = y;
             
-            for(let n = 0; n < words.length; n++) {
-                const testLine = line + words[n] + ' ';
+            if (text.trim() === '') {
+                return currentY + lineHeight / 2;
+            }
+            
+            for (let i = 0; i < words.length; i++) {
+                const testLine = currentLine ? currentLine + ' ' + words[i] : words[i];
                 const metrics = context.measureText(testLine);
-                const testWidth = metrics.width;
                 
-                if (testWidth > maxWidth && n > 0) {
-                    context.fillText(line, x, currentY);
-                    line = words[n] + ' ';
+                if (metrics.width > maxWidth && i > 0) {
+                    context.fillText(currentLine, x, currentY);
+                    currentLine = words[i];
                     currentY += lineHeight;
+                    
+                    // Check if we're running out of space (shouldn't happen with dynamic height)
+                    if (currentY > finalHeight - 100) {
+                        console.warn('Content approaching canvas bottom');
+                    }
                 } else {
-                    line = testLine;
+                    currentLine = testLine;
                 }
             }
             
-            if (line) {
-                context.fillText(line, x, currentY);
+            if (currentLine) {
+                context.fillText(currentLine, x, currentY);
             }
             
             return currentY + lineHeight;
@@ -2181,11 +2199,11 @@ function createImageFromText(text, filename) {
             
             // Handle section headers
             if (line === 'TOP 5 SELLERS' || line === 'ALL ITEMS SOLD' || line === 'EXPENSE DETAILS' || 
-                line === 'CASH FLOW' || line === 'TRANSACTIONS') {
+                line === 'CASH FLOW' || line === 'TRANSACTIONS' || line === 'FINAL SUMMARY') {
                 y += lineHeight;
                 ctx.fillStyle = '#e67e22';
                 ctx.font = 'bold 22px "Arial", "Helvetica", sans-serif';
-                y = wrapText(ctx, line, margin, y, baseWidth - 2 * margin, lineHeight);
+                y = wrapText(ctx, line, margin, y, maxWidth, lineHeight);
                 ctx.fillStyle = '#333333';
                 ctx.font = '18px "Arial", "Helvetica", sans-serif';
                 return;
@@ -2195,7 +2213,7 @@ function createImageFromText(text, filename) {
             if (line.startsWith('→ ')) {
                 ctx.fillStyle = '#2c3e50';
                 ctx.font = 'bold 20px "Arial", "Helvetica", sans-serif';
-                y = wrapText(ctx, line, margin, y, baseWidth - 2 * margin, lineHeight);
+                y = wrapText(ctx, line, margin, y, maxWidth, lineHeight);
                 ctx.fillStyle = '#333333';
                 ctx.font = '18px "Arial", "Helvetica", sans-serif';
                 return;
@@ -2206,14 +2224,13 @@ function createImageFromText(text, filename) {
                 y += lineHeight;
                 ctx.fillStyle = '#7f8c8d';
                 ctx.font = 'italic 16px "Arial", "Helvetica", sans-serif';
-                ctx.fillText(line, margin, y);
-                y += lineHeight;
+                y = wrapText(ctx, line, margin, y, maxWidth, lineHeight);
                 return;
             }
             
             // Regular lines
             if (line.trim() !== '') {
-                y = wrapText(ctx, line, margin, y, baseWidth - 2 * margin, lineHeight);
+                y = wrapText(ctx, line, margin, y, maxWidth, lineHeight);
             } else {
                 y += lineHeight / 2; // Smaller gap for empty lines
             }
@@ -2231,20 +2248,24 @@ function createImageFromText(text, filename) {
                 const link = document.createElement('a');
                 link.download = filename;
                 link.href = url;
+                document.body.appendChild(link);
                 link.click();
+                document.body.removeChild(link);
                 setTimeout(() => URL.revokeObjectURL(url), 100);
                 
-                // Show success message with dimensions
-                console.log(`Image exported: ${baseWidth}x${finalHeight} pixels`);
+                // Show success message
+                console.log(`✅ Image exported successfully: ${baseWidth}x${finalHeight} pixels`);
+                alert(`Report exported successfully!\nImage size: ${baseWidth}x${finalHeight} pixels`);
+            } else {
+                throw new Error('Failed to create image blob');
             }
-        }, 'image/png', 1.0); // Maximum quality
+        }, 'image/png', 1.0);
         
     } catch (error) {
         console.error('Error creating image:', error);
-        alert('Error creating image. Please try again.');
+        alert('Error creating image: ' + error.message + '\nPlease try again.');
     }
 }
-
 // ======================
 // WHATSAPP REPORT FUNCTIONS
 // ======================
