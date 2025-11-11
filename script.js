@@ -2598,21 +2598,3 @@ function saveExpenses(expenses) {
         console.error('Error saving expenses:', error);
     }
 }
-
-function initializeSampleData() {
-    if (localStorage.getItem('bakeryPosInitialized')) return;
-
-    const sampleProducts = [
-        { id: 1, name: "Bread", price: 1000, quantity: 20 },
-        { id: 2, name: "Croissant", price: 1500, quantity: 15 },
-        { id: 3, name: "Cake", price: 5000, quantity: 5 },
-        { id: 4, name: "Donut", price: 800, quantity: 30 },
-        { id: 5, name: "Cookie", price: 300, quantity: 50 }
-    ];
-
-    saveProducts(sampleProducts);
-    localStorage.setItem('bakeryPosInitialized', 'true');
-}
-
-// Initialize sample data
-initializeSampleData();
