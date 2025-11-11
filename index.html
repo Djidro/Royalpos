@@ -1,15 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Bakery POS</title>
-<link rel="stylesheet" href="style.css">
-<script src="https://unpkg.com/pocketbase/dist/pocketbase.umd.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bakery POS</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/pocketbase/dist/pocketbase.umd.js"></script>
+    <!-- GitHub Pages compatibility script -->
+    <script>
+        // Detect environment for GitHub Pages compatibility
+        const isGitHubPages = window.location.hostname.includes('github.io');
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        if (isGitHubPages) {
+            console.log('Running on GitHub Pages - PocketBase will be disabled');
+        } else if (isLocalhost) {
+            console.log('Running locally - PocketBase will be enabled');
+        }
+    </script>
 </head>
 <body>
 
 <header>
     <h1>Bakery POS</h1>
+    <div id="network-status" style="display:none;"></div>
 </header>
 
 <nav class="tabs">
@@ -24,84 +38,130 @@
 <!-- Sales TAB -->
 <section id="sales-tab" class="tab active">
     <h2>Sales</h2>
-    <div id="shift-status" class="shift-status shift-off"></div>
+    <div id="shift-status" class="shift-status shift-off">Shift: OFF</div>
 
-    <div id="products-grid" class="products-grid"></div>
+    <h3>Available Products</h3>
+    <div id="products-grid" class="products-grid">
+        <!-- Products will be loaded here -->
+    </div>
 
     <h3>Cart</h3>
-    <div id="cart-items"></div>
-    <p>Total: <span id="cart-total">0 RWF</span></p>
+    <div id="cart-items" class="cart-container">
+        <!-- Cart items will be loaded here -->
+    </div>
+    <p class="cart-total">Total: <span id="cart-total">0 RWF</span></p>
 
     <div class="payment-methods">
-        <label><input type="radio" name="payment" value="cash"> Cash</label>
+        <label><input type="radio" name="payment" value="cash" checked> Cash</label>
         <label><input type="radio" name="payment" value="momo"> MoMo</label>
     </div>
 
-    <button id="checkout-btn" class="btn-primary" disabled>Checkout</button>
+    <button id="checkout-btn" class="btn btn-primary" disabled>Checkout</button>
 </section>
 
 <!-- Stock TAB -->
 <section id="stock-tab" class="tab">
-    <h2>Stock</h2>
+    <h2>Stock Management</h2>
+    
+    <div class="stock-form">
+        <input id="item-name" type="text" placeholder="Item name" required>
+        <input id="item-price" type="number" placeholder="Price" min="0" step="0.01" required>
+        <input id="item-quantity" type="text" placeholder="Quantity (number or unlimited)" required>
+        <button id="add-item-btn" class="btn">Add / Update Product</button>
+    </div>
 
-    <input id="item-name" type="text" placeholder="Item name">
-    <input id="item-price" type="number" placeholder="Price">
-    <input id="item-quantity" type="text" placeholder="Quantity (number or unlimited)">
-    <button id="add-item-btn" class="btn">Add / Update</button>
-
-    <div id="stock-items"></div>
+    <h3>Current Stock</h3>
+    <div id="stock-items">
+        <!-- Stock items will be loaded here -->
+    </div>
 </section>
 
 <!-- Receipts TAB -->
 <section id="receipts-tab" class="tab">
-    <h2>Receipts</h2>
-    <input id="receipt-date-filter" type="date">
-    <div id="receipts-list"></div>
+    <h2>Receipts History</h2>
+    
+    <div class="filter-section">
+        <label>Filter by Date: 
+            <input id="receipt-date-filter" type="date">
+        </label>
+        <button id="load-receipts-btn" class="btn">Load Receipts</button>
+    </div>
+
+    <div id="receipts-list">
+        <!-- Receipts will be loaded here -->
+    </div>
 </section>
 
 <!-- Receipt Modal -->
 <div id="receipt-modal" class="modal">
-    <div class="modal-content" id="receipt-content"></div>
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <div id="receipt-content">
+            <!-- Receipt details will be loaded here -->
+        </div>
+    </div>
 </div>
 
 <!-- Summary TAB -->
 <section id="summary-tab" class="tab">
-    <h2>Summary</h2>
-    <label>Start Date <input id="start-date" type="date"></label>
-    <label>End Date <input id="end-date" type="date"></label>
-    <button onclick="loadSummary()">Load</button>
-    <div id="summary-content"></div>
+    <h2>Sales Summary</h2>
+    
+    <div class="filter-section">
+        <label>Start Date: <input id="start-date" type="date"></label>
+        <label>End Date: <input id="end-date" type="date"></label>
+        <button id="load-summary-btn" class="btn">Generate Summary</button>
+    </div>
+
+    <div id="summary-content">
+        <!-- Summary will be loaded here -->
+    </div>
 </section>
 
 <!-- Shift TAB -->
 <section id="shift-tab" class="tab">
-    <h2>Shift</h2>
-    <button id="start-shift-btn" class="btn-success">Start Shift</button>
-    <button id="end-shift-btn" class="btn-danger">End Shift</button>
-    <div id="shift-summary"></div>
+    <h2>Shift Management</h2>
+    
+    <div class="shift-controls">
+        <button id="start-shift-btn" class="btn btn-success">Start Shift</button>
+        <button id="end-shift-btn" class="btn btn-danger">End Shift</button>
+    </div>
+
+    <div id="shift-summary">
+        <!-- Shift summary will be loaded here -->
+    </div>
 </section>
 
 <!-- Expenses TAB -->
 <section id="expenses-tab" class="tab">
-    <h2>Expenses</h2>
-    <input type="text" id="expense-name" placeholder="Expense name or leave empty for note">
-    <input type="number" id="expense-amount" placeholder="Amount">
-    <textarea id="expense-notes" placeholder="Notes (optional)"></textarea>
-    <button id="add-expense-btn" class="btn">Add Expense/Note</button>
-    <div id="expenses-list"></div>
+    <h2>Expenses & Notes</h2>
+    
+    <div class="expense-form">
+        <input type="text" id="expense-name" placeholder="Expense name (leave empty for note)">
+        <input type="number" id="expense-amount" placeholder="Amount (0 for note)" min="0" step="0.01">
+        <textarea id="expense-notes" placeholder="Notes (optional)"></textarea>
+        <button id="add-expense-btn" class="btn">Add Expense/Note</button>
+    </div>
+
+    <h3>Recent Expenses & Notes</h3>
+    <div id="expenses-list">
+        <!-- Expenses will be loaded here -->
+    </div>
 </section>
+
+<!-- Demo Data Notice for GitHub Pages -->
+<div id="demo-notice" style="display: none;">
+    <div style="background: #f0f8ff; padding: 10px; margin: 10px 0; border-left: 4px solid #3b82f6;">
+        <strong>Demo Mode:</strong> Running on GitHub Pages. Data is stored locally in your browser.
+    </div>
+</div>
 
 <script src="script.js"></script>
 
 <script>
-document.querySelectorAll('.tab-btn').forEach(btn=>{
-    btn.onclick=()=>{
-        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-        btn.classList.add('active');
-        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-        document.getElementById(btn.dataset.tab).classList.add('active');
-    };
-});
+    // Show demo notice on GitHub Pages
+    if (window.location.hostname.includes('github.io')) {
+        document.getElementById('demo-notice').style.display = 'block';
+    }
 </script>
 
 </body>
