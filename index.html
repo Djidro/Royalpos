@@ -1,126 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data: blob:; connect-src 'self' https://cdnjs.cloudflare.com">
-    <title>Royal Bakes POS</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#e67e22">
-    <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<meta charset="UTF-8">
+<title>Bakery POS</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/pocketbase/dist/pocketbase.umd.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div id="shift-status" class="shift-off">Shift: Not Started</div>
-        </header>
-        
-        <nav>
-            <button class="tab-btn active" data-tab="pos"><i class="fas fa-cash-register"></i> POS</button>
-            <button class="tab-btn" data-tab="receipts"><i class="fas fa-receipt"></i> Receipts</button>
-            <button class="tab-btn" data-tab="summary"><i class="fas fa-chart-bar"></i> Summary</button>
-            <button class="tab-btn" data-tab="stock"><i class="fas fa-boxes"></i> Stock</button>
-            <button class="tab-btn" data-tab="expenses"><i class="fas fa-receipt"></i> Expenses</button>
-            <button class="tab-btn" data-tab="shift"><i class="fas fa-user-clock"></i> Shift</button>
-        </nav>
-        
-        <main>
-            <!-- POS Tab -->
-            <div id="pos" class="tab-content active">
-                <div class="products-grid" id="products"><!-- Products load here --></div>
-                
-                <div class="cart-container">
-                    <h2><i class="fas fa-shopping-cart"></i> Cart</h2>
-                    <div id="cart-items"></div>
-                    <div class="cart-total">
-                        <p>Total: <span id="cart-total">0</span> RWF</p>
-                    </div>
-                    <div class="payment-options">
-                        <label><input type="radio" name="payment" value="cash" checked> Cash</label>
-                        <label><input type="radio" name="payment" value="momo"> MoMo</label>
-                    </div>
-                    <button id="checkout-btn" class="btn" disabled><i class="fas fa-check-circle"></i> Checkout</button>
-                    <div id="shift-closed-alert" class="alert alert-warning" style="display: none;">
-                        <i class="fas fa-exclamation-triangle"></i> Cannot checkout - shift is not started!
-                    </div>
-                </div>
-            </div>
 
-            <!-- Receipts Tab -->
-            <div id="receipts" class="tab-content">
-                <h2><i class="fas fa-receipt"></i> Recent Receipts</h2>
-                <div class="date-filter">
-                    <input type="date" id="receipt-date-filter">
-                    <button id="filter-receipts-btn" class="btn"><i class="fas fa-filter"></i> Filter</button>
-                </div>
-                <div id="receipts-list"></div>
-            </div>
+<header>
+    <h1>Bakery POS</h1>
+</header>
 
-            <!-- Summary Tab -->
-            <div id="summary" class="tab-content">
-                <h2><i class="fas fa-chart-bar"></i> Sales Summary</h2>
-                <div class="date-range">
-                    <input type="date" id="start-date">
-                    <span>to</span>
-                    <input type="date" id="end-date">
-                    <button id="filter-summary-btn" class="btn"><i class="fas fa-filter"></i> Filter</button>
-                    <button id="whatsapp-summary-btn" class="btn" style="background-color: #25D366;"><i class="fab fa-whatsapp"></i> Send Summary</button>
-                </div>
-                <div id="summary-content"></div>
-            </div>
+<nav class="tabs">
+    <button class="tab-btn active" data-tab="sales-tab">Sales</button>
+    <button class="tab-btn" data-tab="stock-tab">Stock</button>
+    <button class="tab-btn" data-tab="receipts-tab">Receipts</button>
+    <button class="tab-btn" data-tab="summary-tab">Summary</button>
+    <button class="tab-btn" data-tab="shift-tab">Shift</button>
+    <button class="tab-btn" data-tab="expenses-tab">Expenses</button>
+</nav>
 
-            <!-- Stock Tab -->
-            <div id="stock" class="tab-content">
-                <h2><i class="fas fa-boxes"></i> Stock Management</h2>
-                <div class="stock-form">
-                    <input type="text" id="item-name" placeholder="Item Name">
-                    <input type="number" id="item-price" placeholder="Price (RWF)" min="0" step="1">
-                    <input type="text" id="item-quantity" placeholder="Quantity (or 'unlimited')">
-                    <small>Enter a number or "unlimited".</small>
-                    <button id="add-item-btn" class="btn"><i class="fas fa-plus"></i> Add Item</button>
-                </div>
-                <div id="low-stock-alerts"></div>
-                <div id="stock-items"></div>
-            </div>
+<!-- Sales TAB -->
+<section id="sales-tab" class="tab active">
+    <h2>Sales</h2>
+    <div id="shift-status" class="shift-status shift-off"></div>
 
-            <!-- Shift Tab -->
-            <div id="shift" class="tab-content">
-                <h2><i class="fas fa-user-clock"></i> Shift Management</h2>
-                <div id="shift-controls">
-                    <button id="start-shift-btn" class="btn"><i class="fas fa-play"></i> Start Shift</button>
-                    <button id="end-shift-btn" class="btn" disabled><i class="fas fa-stop"></i> End Shift</button>
-                </div>
-                <div id="shift-summary"></div>
-                <div id="whatsapp-section" style="display: none;">
-                    <button id="send-whatsapp-btn" class="btn"><i class="fab fa-whatsapp"></i> Send Summary</button>
-                </div>
-            </div>
+    <div id="products-grid" class="products-grid"></div>
 
-            <!-- Expenses Tab -->
-            <div id="expenses" class="tab-content">
-                <h2><i class="fas fa-receipt"></i> Expense Tracking</h2>
-                <div class="expense-form">
-                    <input type="text" id="expense-name" placeholder="Expense Name">
-                    <input type="number" id="expense-amount" placeholder="Amount (RWF)" min="0">
-                    <textarea id="expense-notes" placeholder="Notes (optional)"></textarea>
-                    <button id="add-expense-btn" class="btn"><i class="fas fa-plus"></i> Add Expense</button>
-                </div>
-                <div id="expenses-list"></div>
-            </div>
-        </main>
+    <h3>Cart</h3>
+    <div id="cart-items"></div>
+    <p>Total: <span id="cart-total">0 RWF</span></p>
+
+    <div class="payment-methods">
+        <label><input type="radio" name="payment" value="cash"> Cash</label>
+        <label><input type="radio" name="payment" value="momo"> MoMo</label>
     </div>
 
-    <div id="receipt-modal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <div id="receipt-content"></div>
-            <button id="copy-receipt-btn" class="btn"><i class="fas fa-copy"></i> Copy Receipt</button>
-        </div>
-    </div>
+    <button id="checkout-btn" class="btn-primary" disabled>Checkout</button>
+</section>
 
-    <script src="https://cdn.jsdelivr.net/npm/pocketbase@latest/dist/pocketbase.umd.js"></script>
-    <script src="script.js"></script>
+<!-- Stock TAB -->
+<section id="stock-tab" class="tab">
+    <h2>Stock</h2>
+
+    <input id="item-name" type="text" placeholder="Item name">
+    <input id="item-price" type="number" placeholder="Price">
+    <input id="item-quantity" type="text" placeholder="Quantity (number or unlimited)">
+    <button id="add-item-btn" class="btn">Add / Update</button>
+
+    <div id="stock-items"></div>
+</section>
+
+<!-- Receipts TAB -->
+<section id="receipts-tab" class="tab">
+    <h2>Receipts</h2>
+    <input id="receipt-date-filter" type="date">
+    <div id="receipts-list"></div>
+</section>
+
+<!-- Receipt Modal -->
+<div id="receipt-modal" class="modal">
+    <div class="modal-content" id="receipt-content"></div>
+</div>
+
+<!-- Summary TAB -->
+<section id="summary-tab" class="tab">
+    <h2>Summary</h2>
+    <label>Start Date <input id="start-date" type="date"></label>
+    <label>End Date <input id="end-date" type="date"></label>
+    <button onclick="loadSummary()">Load</button>
+    <div id="summary-content"></div>
+</section>
+
+<!-- Shift TAB -->
+<section id="shift-tab" class="tab">
+    <h2>Shift</h2>
+    <button id="start-shift-btn" class="btn-success">Start Shift</button>
+    <button id="end-shift-btn" class="btn-danger">End Shift</button>
+    <div id="shift-summary"></div>
+</section>
+
+<!-- Expenses TAB -->
+<section id="expenses-tab" class="tab">
+    <h2>Expenses</h2>
+    <input type="text" id="expense-name" placeholder="Expense name or leave empty for note">
+    <input type="number" id="expense-amount" placeholder="Amount">
+    <textarea id="expense-notes" placeholder="Notes (optional)"></textarea>
+    <button id="add-expense-btn" class="btn">Add Expense/Note</button>
+    <div id="expenses-list"></div>
+</section>
+
+<script src="script.js"></script>
+
+<script>
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.onclick=()=>{
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+        document.getElementById(btn.dataset.tab).classList.add('active');
+    };
+});
+</script>
+
 </body>
 </html>
