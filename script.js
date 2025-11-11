@@ -1,431 +1,179 @@
-// Offline detection and handling
+const pb = new PocketBase("http://127.0.0.1:8090");
+
+// Show online/offline status
 function updateOnlineStatus() {
-    const statusElement = document.createElement('div');
-    statusElement.id = 'network-status';
-    statusElement.style.position = 'fixed';
-    statusElement.style.bottom = '10px';
-    statusElement.style.right = '10px';
-    statusElement.style.padding = '8px 15px';
-    statusElement.style.borderRadius = '20px';
-    statusElement.style.fontSize = '14px';
-    statusElement.style.zIndex = '1000';
-    
+    const el = document.createElement('div');
+    el.id = 'network-status';
+    el.style.position = 'fixed';
+    el.style.bottom = '10px';
+    el.style.right = '10px';
+    el.style.padding = '8px 15px';
+    el.style.borderRadius = '20px';
+    el.style.fontSize = '14px';
+    el.style.zIndex = '1000';
+
     if (navigator.onLine) {
-        statusElement.textContent = 'Online';
-        statusElement.style.backgroundColor = '#2ecc71';
-        statusElement.style.color = 'white';
+        el.textContent = 'Online';
+        el.style.backgroundColor = '#2ecc71';
+        el.style.color = 'white';
     } else {
-        statusElement.textContent = 'Offline';
-        statusElement.style.backgroundColor = '#e74c3c';
-        statusElement.style.color = 'white';
+        el.textContent = 'Offline';
+        el.style.backgroundColor = '#e74c3c';
+        el.style.color = 'white';
     }
-    
-    // Remove existing status if it exists
-    const existingStatus = document.getElementById('network-status');
-    if (existingStatus) {
-        existingStatus.remove();
-    }
-    
-    document.body.appendChild(statusElement);
-    
-    // Auto-hide after 3 seconds if online
+
+    const existing = document.getElementById('network-status');
+    if (existing) existing.remove();
+    document.body.appendChild(el);
+
     if (navigator.onLine) {
-        setTimeout(() => {
-            statusElement.style.opacity = '0';
-            setTimeout(() => {
-                if (statusElement.parentNode) {
-                    statusElement.remove();
-                }
-            }, 500);
-        }, 3000);
+        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, 3000);
     }
 }
 
-// Add event listeners for online/offline status
 window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
-
-// Initial check
 updateOnlineStatus();
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize the app
-    initApp();
-});
+// Load products from PocketBase
+async function loadProducts() {
+    const container = document.getElementById('products');
+    if (!container) return;
 
-function initApp() {
-    // Tab switching functionality
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const tabId = button.getAttribute('data-tab');
-            switchTab(tabId);
+    try {
+        const products = await pb.collection('products').getFullList({ sort: '-created' });
+        container.innerHTML = '';
+
+        products.forEach(p => {
+            const div = document.createElement('div');
+            div.classList.add('product-item');
+            div.innerHTML = `
+                <h3>${p.name}</h3>
+                <p>Price: ${p.price} RWF</p>
+                <p>Stock: ${p.quantity}</p>
+            `;
+            div.addEventListener('click', () => addToCart(p));
+            container.appendChild(div);
         });
-    });
 
-    // Initialize all tabs
-    initPOSTab();
-    initReceiptsTab();
-    initSummaryTab();
-    initStockTab();
-    initShiftTab();
-    initExpensesTab();
-
-    // Check if there's an active shift
-    checkActiveShift();
-
-    // Load low stock alerts
-    checkLowStock();
-}
-
-function switchTab(tabId) {
-    // Hide all tab contents
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-
-    // Deactivate all tab buttons
-    document.querySelectorAll('.tab-btn').forEach(button => {
-        button.classList.remove('active');
-    });
-
-    // Activate the selected tab
-    const targetTab = document.getElementById(tabId);
-    const targetButton = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
-    
-    if (targetTab) targetTab.classList.add('active');
-    if (targetButton) targetButton.classList.add('active');
-
-    // Refresh the tab content if needed
-    switch(tabId) {
-        case 'pos':
-            loadProducts();
-            updateCartDisplay();
-            break;
-        case 'receipts':
-            loadReceipts();
-            break;
-        case 'summary':
-            loadSummary();
-            break;
-        case 'stock':
-            loadStockItems();
-            checkLowStock();
-            break;
-        case 'shift':
-            updateShiftDisplay();
-            break;
-        case 'expenses':
-            loadExpenses();
-            break;
+    } catch (err) {
+        console.error(err);
+        alert("Products failed to load. Is PocketBase running?");
     }
 }
 
-// ======================
-// POS TAB FUNCTIONS
-// ======================
-
-function initPOSTab() {
-    // Load products
-    loadProducts();
-
-    // Set up checkout button
-    const checkoutBtn = document.getElementById('checkout-btn');
-    if (checkoutBtn) {
-        checkoutBtn.addEventListener('click', checkout);
-    }
+// CART SYSTEM (local only)
+function getCart() {
+    return JSON.parse(localStorage.getItem('bakeryPosCart') || '[]');
 }
-
-function loadProducts() {
-    const productsGrid = document.getElementById('products-grid');
-    if (!productsGrid) return;
-    
-    productsGrid.innerHTML = '';
-
-    const products = getProducts();
-    
-    if (products.length === 0) {
-        productsGrid.innerHTML = '<p class="no-products">No products available. Add some in the Stock tab.</p>';
-        return;
-    }
-    
-    products.forEach(product => {
-        const productCard = document.createElement('div');
-        productCard.className = 'product-card';
-        
-        // Handle unlimited stock display
-        const stockDisplay = product.quantity === 'unlimited' ? 'Unlimited' : product.quantity;
-        const stockClass = product.quantity !== 'unlimited' && product.quantity < 5 ? 'low-stock' : '';
-        const lowStockWarning = product.quantity !== 'unlimited' && product.quantity < 5 ? '(Low Stock!)' : '';
-        
-        productCard.innerHTML = `
-            <h3>${product.name}</h3>
-            <p>${product.price} RWF</p>
-            <p class="stock-info ${stockClass}">Stock: ${stockDisplay} ${lowStockWarning}</p>
-        `;
-        
-        productCard.addEventListener('click', () => addToCart(product.id));
-        productsGrid.appendChild(productCard);
-    });
+function saveCart(cart) {
+    localStorage.setItem('bakeryPosCart', JSON.stringify(cart));
 }
-
-function addToCart(productId) {
-    const activeShift = getActiveShift();
-    if (!activeShift) {
-        alert('Please start a shift before making sales!');
-        return;
-    }
-
-    const products = getProducts();
-    const product = products.find(p => p.id === productId);
-    
-    if (!product) {
-        alert('Product not found!');
-        return;
-    }
-    
-    // Check if product exists and has stock (unless unlimited)
-    if (product.quantity !== 'unlimited' && product.quantity <= 0) {
-        alert('This item is out of stock!');
-        return;
-    }
-
+function addToCart(product) {
     let cart = getCart();
-    const existingItem = cart.find(item => item.productId === productId);
+    const item = cart.find(i => i.id === product.id);
 
-    if (existingItem) {
-        // Only check stock if not unlimited
-        if (product.quantity !== 'unlimited' && existingItem.quantity >= product.quantity) {
-            alert('Not enough stock available!');
-            return;
-        }
-        existingItem.quantity += 1;
+    if (item) {
+        item.quantity++;
     } else {
-        cart.push({
-            productId: productId,
-            name: product.name,
-            price: product.price,
-            quantity: 1
-        });
+        cart.push({ id: product.id, name: product.name, price: product.price, quantity: 1 });
     }
 
     saveCart(cart);
     updateCartDisplay();
 }
 
-function getCart() {
-    const cart = localStorage.getItem('bakeryPosCart');
-    return cart ? JSON.parse(cart) : [];
-}
-
-function saveCart(cart) {
-    localStorage.setItem('bakeryPosCart', JSON.stringify(cart));
-}
-
+// Show cart items
 function updateCartDisplay() {
-    const cartItemsContainer = document.getElementById('cart-items');
-    const cartTotalElement = document.getElementById('cart-total');
+    const container = document.getElementById('cart-items');
+    const totalEl = document.getElementById('cart-total');
     const checkoutBtn = document.getElementById('checkout-btn');
-    
-    if (!cartItemsContainer || !cartTotalElement || !checkoutBtn) return;
-    
+
     const cart = getCart();
-    const products = getProducts();
-
-    cartItemsContainer.innerHTML = '';
-
     let total = 0;
+    container.innerHTML = '';
 
-    cart.forEach(item => {
-        const product = products.find(p => p.id == item.productId);
-        if (!product) return;
-
-        const itemTotal = item.price * item.quantity;
+    cart.forEach(i => {
+        const itemTotal = i.price * i.quantity;
         total += itemTotal;
 
-        const cartItemElement = document.createElement('div');
-        cartItemElement.className = 'cart-item';
-        cartItemElement.innerHTML = `
+        const row = document.createElement('div');
+        row.className = 'cart-item';
+        row.innerHTML = `
             <div>
-                <h4>${item.name}</h4>
-                <p>${item.price} RWF × ${item.quantity} = ${itemTotal} RWF</p>
+                <h4>${i.name}</h4>
+                <p>${i.price} RWF × ${i.quantity} = ${itemTotal} RWF</p>
             </div>
             <div class="cart-item-controls">
-                <button class="decrease-btn" data-id="${item.productId}"><i class="fas fa-minus"></i></button>
-                <span>${item.quantity}</span>
-                <button class="increase-btn" data-id="${item.productId}"><i class="fas fa-plus"></i></button>
-                <button class="remove-btn" data-id="${item.productId}"><i class="fas fa-times"></i></button>
+                <button onclick="updateCartItemQty('${i.id}', -1)"><i class="fas fa-minus"></i></button>
+                <button onclick="updateCartItemQty('${i.id}', 1)"><i class="fas fa-plus"></i></button>
+                <button onclick="removeFromCart('${i.id}')"><i class="fas fa-times"></i></button>
             </div>
         `;
-
-        cartItemsContainer.appendChild(cartItemElement);
+        container.appendChild(row);
     });
 
-    // Update event listeners
-    setTimeout(() => {
-        document.querySelectorAll('.decrease-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const productId = parseInt(e.currentTarget.getAttribute('data-id'));
-                updateCartItemQuantity(productId, -1);
-            });
-        });
-
-        document.querySelectorAll('.increase-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const productId = parseInt(e.currentTarget.getAttribute('data-id'));
-                updateCartItemQuantity(productId, 1);
-            });
-        });
-
-        document.querySelectorAll('.remove-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const productId = parseInt(e.currentTarget.getAttribute('data-id'));
-                removeFromCart(productId);
-            });
-        });
-    }, 100);
-
-    cartTotalElement.textContent = total;
-    checkoutBtn.disabled = cart.length === 0 || !getActiveShift();
+    totalEl.textContent = total + " RWF";
+    checkoutBtn.disabled = cart.length === 0;
 }
 
-function updateCartItemQuantity(productId, change) {
+function updateCartItemQty(id, diff) {
     let cart = getCart();
-    const itemIndex = cart.findIndex(item => item.productId === productId);
-    
-    if (itemIndex !== -1) {
-        const newQuantity = cart[itemIndex].quantity + change;
-        
-        if (newQuantity <= 0) {
-            cart.splice(itemIndex, 1);
-        } else {
-            // Check stock availability (only if not unlimited)
-            const products = getProducts();
-            const product = products.find(p => p.id === productId);
-            
-            if (product && product.quantity !== 'unlimited' && newQuantity > product.quantity) {
-                alert('Not enough stock available!');
-                return;
-            }
-            
-            cart[itemIndex].quantity = newQuantity;
-        }
-        
-        saveCart(cart);
-        updateCartDisplay();
-    }
-}
-
-function removeFromCart(productId) {
-    const cart = getCart();
-    const item = cart.find(item => item.productId === productId);
-    
+    const item = cart.find(i => i.id === id);
     if (!item) return;
-    
-    if (confirm(`Are you sure you want to remove ${item.name} from the cart?`)) {
-        const updatedCart = cart.filter(item => item.productId !== productId);
-        saveCart(updatedCart);
-        updateCartDisplay();
-        
-        // Show a brief notification
-        const notification = document.createElement('div');
-        notification.className = 'cart-notification';
-        notification.textContent = `${item.name} removed from cart`;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.remove();
-            }
-        }, 2000);
-    }
+    item.quantity += diff;
+    if (item.quantity <= 0) cart = cart.filter(i => i.id !== id);
+    saveCart(cart);
+    updateCartDisplay();
 }
 
-function checkout() {
-    const activeShift = getActiveShift();
-    if (!activeShift) {
-        alert('Please start a shift before making sales!');
-        return;
-    }
-
+function removeFromCart(id) {
+    let cart = getCart().filter(i => i.id !== id);
+    saveCart(cart);
+    updateCartDisplay();
+}
+async function checkout() {
     const cart = getCart();
-    if (cart.length === 0) {
-        alert('Cart is empty!');
-        return;
-    }
+    if (cart.length === 0) return alert("Cart is empty");
 
     const paymentMethodElement = document.querySelector('input[name="payment"]:checked');
     if (!paymentMethodElement) {
-        alert('Please select a payment method!');
-        return;
+        return alert("Please select a payment method");
     }
-    
     const paymentMethod = paymentMethodElement.value;
-    const products = getProducts();
-    
-    // Check stock availability (skip unlimited items)
-    for (const item of cart) {
-        const product = products.find(p => p.id === item.productId);
-        if (product && product.quantity !== 'unlimited' && product.quantity < item.quantity) {
-            alert(`Not enough stock for ${item.name}!`);
-            return;
+
+    try {
+        // 1. Update stock in PocketBase
+        for (const item of cart) {
+            const product = await pb.collection('products').getOne(item.id);
+
+            if (product.quantity < item.quantity) {
+                return alert(`Not enough stock for ${product.name}`);
+            }
+
+            await pb.collection('products').update(product.id, {
+                quantity: product.quantity - item.quantity
+            });
         }
+
+        // 2. Save sale record to PocketBase
+        await pb.collection('sales').create({
+            items: cart,
+            total: cart.reduce((sum, i) => sum + i.price * i.quantity, 0),
+            payment_method: paymentMethod,
+            date: new Date().toISOString()
+        });
+
+        // 3. Clear cart and refresh UI
+        saveCart([]);
+        updateCartDisplay();
+        loadProducts();
+        alert("Sale completed successfully!");
+
+    } catch (err) {
+        console.error(err);
+        alert("Checkout failed. PocketBase offline?");
     }
-
-    // Process the sale
-    const sale = {
-        id: Date.now(),
-        date: new Date().toISOString(),
-        items: cart.map(item => ({
-            productId: item.productId,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity
-        })),
-        total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-        paymentMethod: paymentMethod,
-        shiftId: activeShift.id,
-        refunded: false
-    };
-
-    // Update stock (skip unlimited items)
-    cart.forEach(item => {
-        const productIndex = products.findIndex(p => p.id === item.productId);
-        if (productIndex !== -1 && products[productIndex].quantity !== 'unlimited') {
-            products[productIndex].quantity -= item.quantity;
-        }
-    });
-
-    // Save updated products
-    saveProducts(products);
-
-    // Record the sale
-    const sales = getSales();
-    sales.push(sale);
-    saveSales(sales);
-
-    // Record for current shift
-    activeShift.sales.push(sale.id);
-    activeShift.total += sale.total;
-    if (paymentMethod === 'cash') {
-        activeShift.cashTotal += sale.total;
-    } else {
-        activeShift.momoTotal += sale.total;
-    }
-    saveActiveShift(activeShift);
-
-    // Clear the cart
-    saveCart([]);
-    updateCartDisplay();
-
-    // Show receipt
-    showReceipt(sale);
-
-    // Reload products to update stock display
-    loadProducts();
-    
-    // Check for low stock
-    checkLowStock();
 }
 
 // ======================
@@ -2498,24 +2246,6 @@ function formatDuration(start, end) {
         return `${hours}h ${minutes}m`;
     } catch (error) {
         return 'Unknown';
-    }
-}
-
-function getProducts() {
-    try {
-        const products = localStorage.getItem('bakeryPosProducts');
-        return products ? JSON.parse(products) : [];
-    } catch (error) {
-        console.error('Error loading products:', error);
-        return [];
-    }
-}
-
-function saveProducts(products) {
-    try {
-        localStorage.setItem('bakeryPosProducts', JSON.stringify(products));
-    } catch (error) {
-        console.error('Error saving products:', error);
     }
 }
 
