@@ -8,13 +8,8 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#e67e22">
     <link rel="stylesheet" href="style.css">
-    <!-- Preconnect to CDN for faster loading -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Fallback for offline -->
-    <noscript>
-        <link rel="stylesheet" href="css/font-awesome-fallback.css">
-    </noscript>
 </head>
 <body>
     <div class="container">
@@ -34,21 +29,17 @@
         <main>
             <!-- POS Tab -->
             <div id="pos" class="tab-content active">
-                <div class="products-grid" id="products-grid">
-                    <!-- Products will be loaded here -->
-                </div>
+                <div class="products-grid" id="products"><!-- Products load here --></div>
                 
                 <div class="cart-container">
                     <h2><i class="fas fa-shopping-cart"></i> Cart</h2>
-                    <div id="cart-items">
-                        <!-- Cart items will be loaded here -->
-                    </div>
+                    <div id="cart-items"></div>
                     <div class="cart-total">
                         <p>Total: <span id="cart-total">0</span> RWF</p>
                     </div>
                     <div class="payment-options">
-                        <label><input type="radio" name="payment" value="cash" checked> <i class="fas fa-money-bill-wave"></i> Cash</label>
-                        <label><input type="radio" name="payment" value="momo"> <i class="fas fa-mobile-alt"></i> MoMo</label>
+                        <label><input type="radio" name="payment" value="cash" checked> Cash</label>
+                        <label><input type="radio" name="payment" value="momo"> MoMo</label>
                     </div>
                     <button id="checkout-btn" class="btn" disabled><i class="fas fa-check-circle"></i> Checkout</button>
                     <div id="shift-closed-alert" class="alert alert-warning" style="display: none;">
@@ -64,11 +55,10 @@
                     <input type="date" id="receipt-date-filter">
                     <button id="filter-receipts-btn" class="btn"><i class="fas fa-filter"></i> Filter</button>
                 </div>
-                <div id="receipts-list">
-                    <!-- Receipts will be loaded here -->
-                </div>
+                <div id="receipts-list"></div>
             </div>
-       
+
+            <!-- Summary Tab -->
             <div id="summary" class="tab-content">
                 <h2><i class="fas fa-chart-bar"></i> Sales Summary</h2>
                 <div class="date-range">
@@ -78,46 +68,36 @@
                     <button id="filter-summary-btn" class="btn"><i class="fas fa-filter"></i> Filter</button>
                     <button id="whatsapp-summary-btn" class="btn" style="background-color: #25D366;"><i class="fab fa-whatsapp"></i> Send Summary</button>
                 </div>
-                <div id="summary-content">
-                    <!-- Summary will be loaded here -->
-                </div>
+                <div id="summary-content"></div>
             </div>
 
-            <!-- Stock Management Tab -->
+            <!-- Stock Tab -->
             <div id="stock" class="tab-content">
                 <h2><i class="fas fa-boxes"></i> Stock Management</h2>
                 <div class="stock-form">
                     <input type="text" id="item-name" placeholder="Item Name">
                     <input type="number" id="item-price" placeholder="Price (RWF)" min="0" step="1">
                     <input type="text" id="item-quantity" placeholder="Quantity (or 'unlimited')">
-                    <small style="display: block; margin-top: -10px; margin-bottom: 10px; color: #666;">
-                        Enter a number or "unlimited" for items that don't need stock tracking
-                    </small>
+                    <small>Enter a number or "unlimited".</small>
                     <button id="add-item-btn" class="btn"><i class="fas fa-plus"></i> Add Item</button>
                 </div>
-                <div class="stock-alerts" id="low-stock-alerts">
-                    <!-- Low stock alerts will appear here -->
-                </div>
-                <div id="stock-items">
-                    <!-- Stock items will be loaded here -->
-                </div>
+                <div id="low-stock-alerts"></div>
+                <div id="stock-items"></div>
             </div>
 
-            <!-- Shift Management Tab -->
+            <!-- Shift Tab -->
             <div id="shift" class="tab-content">
                 <h2><i class="fas fa-user-clock"></i> Shift Management</h2>
                 <div id="shift-controls">
                     <button id="start-shift-btn" class="btn"><i class="fas fa-play"></i> Start Shift</button>
                     <button id="end-shift-btn" class="btn" disabled><i class="fas fa-stop"></i> End Shift</button>
                 </div>
-                <div id="shift-summary">
-                    <!-- Shift summary will be loaded here -->
-                </div>
+                <div id="shift-summary"></div>
                 <div id="whatsapp-section" style="display: none;">
-                    <button id="send-whatsapp-btn" class="btn"><i class="fab fa-whatsapp"></i> Send Summary via WhatsApp</button>
+                    <button id="send-whatsapp-btn" class="btn"><i class="fab fa-whatsapp"></i> Send Summary</button>
                 </div>
             </div>
-            
+
             <!-- Expenses Tab -->
             <div id="expenses" class="tab-content">
                 <h2><i class="fas fa-receipt"></i> Expense Tracking</h2>
@@ -127,34 +107,20 @@
                     <textarea id="expense-notes" placeholder="Notes (optional)"></textarea>
                     <button id="add-expense-btn" class="btn"><i class="fas fa-plus"></i> Add Expense</button>
                 </div>
-                <div id="expenses-list">
-                    <!-- Expenses will be loaded here -->
-                </div>
+                <div id="expenses-list"></div>
             </div>
         </main>
     </div>
 
-    <!-- Receipt Modal -->
     <div id="receipt-modal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <div id="receipt-content">
-                <!-- Receipt content will be loaded here -->
-            </div>
+            <div id="receipt-content"></div>
             <button id="copy-receipt-btn" class="btn"><i class="fas fa-copy"></i> Copy Receipt</button>
         </div>
     </div>
-<script src="https://cdn.jsdelivr.net/npm/pocketbase@latest/dist/pocketbase.umd.js"></script>
-<script src="script.js"></script>
-<script>
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js')
-                .then(registration => console.log('SW registered'))
-                .catch(err => console.log('SW registration failed: ', err));
-        });
-    }
-</script>
+
+    <script src="https://cdn.jsdelivr.net/npm/pocketbase@latest/dist/pocketbase.umd.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
