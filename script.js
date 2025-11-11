@@ -1,57 +1,40 @@
-/* script.js - full POS logic with PocketBase + localStorage fallback
-   Fields for product: { id, name, price, quantity } 
-   Collections used in PocketBase: "products", "sales"
-   Replace your current script.js with this file.
-*/
+/* script.js - COMPLETE Bakery POS with Perfect PocketBase Integration */
 
-const pb = new PocketBase("http://127.0.0.1:8090");
+// ==================== POCKETBASE CONFIGURATION ====================
+let pb;
+let POCKETBASE_URL = '';
+let USE_POCKETBASE = false;
 
-// -------------------- Online / Offline UI --------------------
-function showNetworkStatus() {
-    const existing = document.getElementById('network-status');
-    if (existing) existing.remove();
-
-    const el = document.createElement('div');
-    el.id = 'network-status';
-    el.style.position = 'fixed';
-    el.style.bottom = '10px';
-    el.style.right = '10px';
-    el.style.padding = '8px 15px';
-    el.style.borderRadius = '20px';
-    el.style.fontSize = '14px';
-    el.style.zIndex = '10000';
-    el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
-
-    if (navigator.onLine) {
-        el.textContent = 'Online';
-        el.style.backgroundColor = '#2ecc71';
-        el.style.color = 'white';
-    } else {
-        el.textContent = 'Offline';
-        el.style.backgroundColor = '#e74c3c';
-        el.style.color = 'white';
+function configurePocketBase() {
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    if (isLocalhost) {
+        POCKETBASE_URL = 'http://127.0.0.1:8090';
+        USE_POCKETBASE = true;
+        console.log('Running locally - PocketBase enabled');
+    } else if (isGitHubPages) {
+        USE_POCKETBASE = false;
+        console.log('Running on GitHub Pages - PocketBase disabled');
     }
-
-    document.body.appendChild(el);
-
-    if (navigator.onLine) {
-        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }, 3000);
+    
+    if (USE_POCKETBASE && typeof PocketBase !== 'undefined') {
+        try {
+            pb = new PocketBase(POCKETBASE_URL);
+            console.log('PocketBase initialized successfully');
+        } catch (error) {
+            console.warn('PocketBase initialization failed:', error);
+            USE_POCKETBASE = false;
+        }
     }
 }
 
-window.addEventListener('online', showNetworkStatus);
-window.addEventListener('offline', showNetworkStatus);
-showNetworkStatus();
+// PocketBase Collection Names (Match your exact collections)
+const PB_PRODUCTS = 'products';
+const PB_SALES = 'Receipt';
+const PB_EXPENSES = 'expenses';
 
-// -------------------- Local Storage helpers --------------------
-function safeParse(key) {
-    try { return JSON.parse(localStorage.getItem(key)) || []; } catch (e) { return []; }
-}
-function safeSave(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { console.error('Save error', key, e); }
-}
-
-// Local keys
+// ==================== LOCAL STORAGE HELPERS ====================
 const LS_PRODUCTS = 'bakeryPosProducts';
 const LS_SALES = 'bakeryPosSales';
 const LS_ACTIVE_SHIFT = 'bakeryPosActiveShift';
@@ -59,27 +42,101 @@ const LS_SHIFT_HISTORY = 'bakeryPosShiftHistory';
 const LS_EXPENSES = 'bakeryPosExpenses';
 const LS_CART = 'bakeryPosCart';
 
-// -------------------- Products (local + remote) --------------------
-// getProducts returns array from local cache (synchronous)
+function safeParse(key) {
+    try { 
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : []; 
+    } catch (e) { 
+        console.warn('Parse error for', key, e);
+        return []; 
+    }
+}
+
+function safeSave(key, value) {
+    try { 
+        localStorage.setItem(key, JSON.stringify(value)); 
+    } catch (e) { 
+        console.error('Save error', key, e); 
+    }
+}
+
+// ==================== NETWORK STATUS ====================
+function showNetworkStatus() {
+    const existing = document.getElementById('network-status');
+    if (existing) existing.remove();
+
+    const el = document.createElement('div');
+    el.id = 'network-status';
+    el.style.cssText = 'position:fixed;bottom:10px;right:10px;padding:8px 15px;border-radius:20px;font-size:14px;z-index:10000;box-shadow:0 2px 6px rgba(0,0,0,0.15);color:white;font-weight:bold;';
+    
+    if (navigator.onLine) {
+        if (USE_POCKETBASE) {
+            el.textContent = '🟢 Online (PocketBase)';
+            el.style.backgroundColor = '#22c55e';
+        } else {
+            el.textContent = '🔵 Online (Local Storage)';
+            el.style.backgroundColor = '#3b82f6';
+        }
+    } else {
+        el.textContent = '🔴 Offline (Local Storage)';
+        el.style.backgroundColor = '#ef4444';
+    }
+
+    document.body.appendChild(el);
+
+    if (navigator.onLine) {
+        setTimeout(() => { 
+            el.style.opacity = '0';
+            setTimeout(() => {
+                if (el.parentNode) el.remove();
+            }, 400);
+        }, 3000);
+    }
+}
+
+// ==================== PRODUCTS MANAGEMENT ====================
 function getProducts() {
     return safeParse(LS_PRODUCTS);
 }
+
 function saveProducts(products) {
     safeSave(LS_PRODUCTS, products);
 }
 
-// Try to pull products from PocketBase and update local cache
+function loadDemoData() {
+    if (window.location.hostname.includes('github.io')) {
+        const products = getProducts();
+        if (products.length === 0) {
+            const demoProducts = [
+                { id: 'demo1', name: 'Croissant', price: 5, quantity: 20 },
+                { id: 'demo2', name: 'Baguette', price: 3, quantity: 15 },
+                { id: 'demo3', name: 'Chocolate Cake', price: 12, quantity: 8 },
+                { id: 'demo4', name: 'Coffee', price: 2, quantity: 'unlimited' },
+                { id: 'demo5', name: 'Sandwich', price: 8, quantity: 10 }
+            ];
+            saveProducts(demoProducts);
+            console.log('Demo products loaded for GitHub Pages');
+        }
+    }
+}
+
 async function syncProductsFromPocketbase() {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine || !USE_POCKETBASE || !pb) {
+        return getProducts();
+    }
+    
     try {
-        const records = await pb.collection('products').getFullList({ sort: '-created' });
-        // Normalize: ensure id, name, price, quantity
+        const records = await pb.collection(PB_PRODUCTS).getFullList({ 
+            sort: '-created' 
+        });
+        
         const normalized = records.map(r => ({
-            id: r.id || String(Date.now()) + Math.random(),
+            id: r.id,
             name: r.name || '',
             price: parseFloat(r.price) || 0,
-            quantity: (r.quantity === 'unlimited' || r.quantity === 'Unlimited') ? 'unlimited' : (Number.isFinite(parseFloat(r.quantity)) ? parseInt(r.quantity) : r.quantity)
+            quantity: (r.quantity === 'unlimited' || r.quantity === 'Unlimited') ? 'unlimited' : (parseInt(r.quantity) || 0)
         }));
+        
         saveProducts(normalized);
         return normalized;
     } catch (err) {
@@ -89,10 +146,9 @@ async function syncProductsFromPocketbase() {
 }
 
 async function loadProducts() {
-    const container = document.getElementById('products') || document.getElementById('products-grid');
+    const container = document.getElementById('products-grid');
     if (!container) return;
 
-    // Try PocketBase, fallback to local
     let products = [];
     try {
         products = await syncProductsFromPocketbase();
@@ -100,54 +156,71 @@ async function loadProducts() {
         products = getProducts();
     }
 
-    // Render
     container.innerHTML = '';
-    if (!products || products.length === 0) {
+    
+    if (products.length === 0) {
         container.innerHTML = '<p class="no-products">No products available. Add some in the Stock tab.</p>';
         return;
     }
 
     products.forEach(p => {
         const productCard = document.createElement('div');
-        productCard.className = 'product-item product-card';
+        productCard.className = 'product-card';
         const stockDisplay = p.quantity === 'unlimited' ? 'Unlimited' : p.quantity;
         const lowStockClass = (p.quantity !== 'unlimited' && p.quantity < 5) ? 'low-stock' : '';
+        
         productCard.innerHTML = `
-            <h3 class="product-name">${escapeHtml(p.name)}</h3>
-            <p class="product-price">${p.price} RWF</p>
-            <p class="product-stock ${lowStockClass}">Stock: ${stockDisplay}${lowStockClass ? ' (Low)' : ''}</p>
+            <h4>${escapeHtml(p.name)}</h4>
+            <p class="price">${p.price} RWF</p>
+            <p class="stock ${lowStockClass}">Stock: ${stockDisplay}${lowStockClass ? ' (Low)' : ''}</p>
         `;
+        
         productCard.addEventListener('click', () => addToCart(p));
         container.appendChild(productCard);
     });
 }
 
-// -------------------- Cart (local only, id ties to product.id) --------------------
-function getCart() { return safeParse(LS_CART); }
-function saveCart(cart) { safeSave(LS_CART, cart); }
+// ==================== CART MANAGEMENT ====================
+function getCart() { 
+    return safeParse(LS_CART); 
+}
+
+function saveCart(cart) { 
+    safeSave(LS_CART, cart); 
+}
 
 function addToCart(product) {
-    // product is an object (from PB or local)
-    if (!product) return alert('Product not found!');
-    // If shift required to be active: check elsewhere at checkout
+    if (!product) {
+        alert('Product not found!');
+        return;
+    }
 
     const products = getProducts();
     const prod = products.find(p => p.id === product.id);
+    
     if (prod && prod.quantity !== 'unlimited' && prod.quantity <= 0) {
-        return alert('This product is out of stock!');
+        alert('This product is out of stock!');
+        return;
     }
 
     let cart = getCart();
     let item = cart.find(i => i.id === product.id);
+    
     if (item) {
-        // check stock
         if (prod && prod.quantity !== 'unlimited' && item.quantity >= prod.quantity) {
-            return alert('Not enough stock available!');
+            alert('Not enough stock available!');
+            return;
         }
         item.quantity += 1;
     } else {
-        cart.push({ id: product.id, name: product.name, price: product.price, quantity: 1 });
+        cart.push({ 
+            id: product.id, 
+            name: product.name, 
+            price: product.price, 
+            quantity: 1 
+        });
     }
+    
     saveCart(cart);
     updateCartDisplay();
 }
@@ -156,8 +229,12 @@ function updateCartItemQty(id, diff) {
     let cart = getCart();
     const item = cart.find(i => i.id === id);
     if (!item) return;
+    
     item.quantity += diff;
-    if (item.quantity <= 0) cart = cart.filter(i => i.id !== id);
+    if (item.quantity <= 0) {
+        cart = cart.filter(i => i.id !== id);
+    }
+    
     saveCart(cart);
     updateCartDisplay();
 }
@@ -172,832 +249,1069 @@ function updateCartDisplay() {
     const container = document.getElementById('cart-items');
     const totalEl = document.getElementById('cart-total');
     const checkoutBtn = document.getElementById('checkout-btn');
+    
     if (!container || !totalEl) return;
 
     const cart = getCart();
     container.innerHTML = '';
     let total = 0;
 
-    cart.forEach(i => {
-        const itemTotal = (i.price || 0) * (i.quantity || 0);
+    if (cart.length === 0) {
+        container.innerHTML = '<p class="empty-cart">Cart is empty</p>';
+        if (checkoutBtn) checkoutBtn.disabled = true;
+        totalEl.textContent = '0 RWF';
+        return;
+    }
+
+    cart.forEach(item => {
+        const itemTotal = (item.price || 0) * (item.quantity || 0);
         total += itemTotal;
+        
         const row = document.createElement('div');
         row.className = 'cart-item';
         row.innerHTML = `
-            <div>
-                <h4>${escapeHtml(i.name)}</h4>
-                <p>${i.price} RWF × ${i.quantity} = ${itemTotal} RWF</p>
+            <span class="cart-item-name">${escapeHtml(item.name)}</span>
+            <div class="cart-item-quantity">
+                <button class="quantity-btn decrease" data-id="${item.id}">-</button>
+                <span>${item.quantity}</span>
+                <button class="quantity-btn increase" data-id="${item.id}">+</button>
             </div>
-            <div class="cart-item-controls">
-                <button class="cart-decrease" data-id="${i.id}">-</button>
-                <span>${i.quantity}</span>
-                <button class="cart-increase" data-id="${i.id}">+</button>
-                <button class="cart-remove" data-id="${i.id}">×</button>
-            </div>
+            <span class="cart-item-total">${itemTotal} RWF</span>
+            <button class="remove-btn" data-id="${item.id}">×</button>
         `;
         container.appendChild(row);
     });
 
-    totalEl.textContent = total.toFixed(2) + " RWF";
-
+    totalEl.textContent = `${total.toFixed(2)} RWF`;
     if (checkoutBtn) checkoutBtn.disabled = cart.length === 0 || !getActiveShift();
 
-    // Attach handlers
     setTimeout(() => {
-        document.querySelectorAll('.cart-decrease').forEach(btn => {
-            btn.onclick = () => updateCartItemQty(btn.dataset.id, -1);
+        document.querySelectorAll('.decrease').forEach(btn => {
+            btn.onclick = () => updateCartItemQty(btn.getAttribute('data-id'), -1);
         });
-        document.querySelectorAll('.cart-increase').forEach(btn => {
-            btn.onclick = () => updateCartItemQty(btn.dataset.id, 1);
+        document.querySelectorAll('.increase').forEach(btn => {
+            btn.onclick = () => updateCartItemQty(btn.getAttribute('data-id'), 1);
         });
-        document.querySelectorAll('.cart-remove').forEach(btn => {
-            btn.onclick = () => removeFromCart(btn.dataset.id);
+        document.querySelectorAll('.remove-btn').forEach(btn => {
+            btn.onclick = () => removeFromCart(btn.getAttribute('data-id'));
         });
     }, 50);
 }
 
-// -------------------- Checkout + Sale recording --------------------
+// ==================== POCKETBASE SALES SYNC ====================
+async function syncSalesToPocketbase(sale) {
+    if (!navigator.onLine || !USE_POCKETBASE || !pb) {
+        console.log('PocketBase save skipped - using local storage');
+        return;
+    }
+    
+    try {
+        const receiptData = {
+            items: sale.items,
+            total: sale.total,
+            payment_method: sale.paymentMethod,
+            time: sale.date,
+            shift_id: sale.shiftId
+        };
+        
+        await pb.collection(PB_SALES).create(receiptData);
+        console.log('✅ Receipt saved to PocketBase');
+    } catch (error) {
+        console.error('❌ Failed to save receipt to PocketBase:', error);
+        if (error.data && error.data.data) {
+            console.error('Field errors:', error.data.data);
+        }
+    }
+}
+
+async function syncReceiptsFromPocketbase() {
+    if (!navigator.onLine || !USE_POCKETBASE || !pb) {
+        return [];
+    }
+    
+    try {
+        const records = await pb.collection(PB_SALES).getFullList({ 
+            sort: '-created' 
+        });
+        
+        const pbSales = records.map(r => ({
+            id: r.id,
+            date: r.time || r.created,
+            items: r.items || [],
+            total: r.total || 0,
+            paymentMethod: r.payment_method || 'unknown',
+            shiftId: r.shift_id || null
+        }));
+        
+        return pbSales;
+    } catch (err) {
+        console.warn('PocketBase receipts fetch failed:', err);
+        return [];
+    }
+}
+
+// ==================== CHECKOUT PROCESS ====================
 async function checkout() {
     const activeShift = getActiveShift();
     if (!activeShift) {
-        return alert('Please start a shift before making sales!');
+        alert('Please start a shift before making sales!');
+        return;
     }
 
     const cart = getCart();
-    if (!cart || cart.length === 0) return alert('Cart is empty!');
+    if (!cart || cart.length === 0) {
+        alert('Cart is empty!');
+        return;
+    }
 
     const paymentElem = document.querySelector('input[name="payment"]:checked');
-    if (!paymentElem) return alert('Please select a payment method!');
+    if (!paymentElem) {
+        alert('Please select a payment method!');
+        return;
+    }
+    
     const paymentMethod = paymentElem.value;
 
-    // Validate stock (based on local cache)
     const products = getProducts();
     for (const item of cart) {
         const p = products.find(pp => pp.id === item.id);
         if (p && p.quantity !== 'unlimited' && p.quantity < item.quantity) {
-            return alert(`Not enough stock for ${p.name}`);
+            alert(`Not enough stock for ${p.name}`);
+            return;
         }
     }
 
-    // Build sale object
     const sale = {
-        id: Date.now(),
+        id: 'sale_' + Date.now(),
         date: new Date().toISOString(),
-        items: cart.map(i => ({ productId: i.id, name: i.name, price: i.price, quantity: i.quantity })),
-        total: cart.reduce((s, i) => s + (i.price * i.quantity), 0),
-        paymentMethod,
-        shiftId: activeShift.id,
-        refunded: false
+        items: cart.map(i => ({ 
+            productId: i.id, 
+            name: i.name, 
+            price: i.price, 
+            quantity: i.quantity 
+        })),
+        total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+        paymentMethod: paymentMethod,
+        shiftId: activeShift.id
     };
 
-    // Try to update in PocketBase (stock and record sale) when online
     try {
-        if (navigator.onLine) {
-            // Update stock for each product in PB
-            for (const it of sale.items) {
-                const pbProduct = await pb.collection('products').getOne(it.productId);
-                let newQty = pbProduct.quantity;
-                if (newQty !== 'unlimited') {
-                    newQty = parseInt(newQty) - it.quantity;
-                    if (newQty < 0) throw new Error(`PocketBase: Not enough stock for ${pbProduct.name}`);
-                    await pb.collection('products').update(pbProduct.id, { quantity: newQty });
+        if (navigator.onLine && USE_POCKETBASE && pb) {
+            console.log('🔄 Syncing with PocketBase...');
+            
+            for (const item of sale.items) {
+                try {
+                    const pbProduct = await pb.collection(PB_PRODUCTS).getOne(item.productId);
+                    if (pbProduct.quantity !== 'unlimited') {
+                        const newQty = parseInt(pbProduct.quantity) - item.quantity;
+                        if (newQty < 0) throw new Error(`Not enough stock for ${pbProduct.name}`);
+                        await pb.collection(PB_PRODUCTS).update(pbProduct.id, { 
+                            quantity: newQty 
+                        });
+                        console.log(`✅ Updated stock for ${pbProduct.name}`);
+                    }
+                } catch (error) {
+                    console.warn('Failed to update product stock in PocketBase:', error);
                 }
             }
 
-            // Create sale in PB (store minimal data): collection 'sales'
-            await pb.collection('sales').create({
-                items: sale.items,
-                total: sale.total,
-                payment_method: sale.paymentMethod,
-                date: sale.date,
-                shiftId: sale.shiftId
-            });
+            await syncSalesToPocketbase(sale);
         }
-    } catch (err) {
-        console.warn('PocketBase checkout sync failed:', err);
-        // proceed — we will save locally as fallback
+    } catch (error) {
+        console.warn('PocketBase checkout sync failed:', error);
     }
 
-    // Update local product cache and local sales
     const localProducts = getProducts();
-    sale.items.forEach(it => {
-        const idx = localProducts.findIndex(p => p.id === it.productId);
-        if (idx !== -1) {
-            if (localProducts[idx].quantity !== 'unlimited') {
-                localProducts[idx].quantity -= it.quantity;
-                if (localProducts[idx].quantity < 0) localProducts[idx].quantity = 0;
-            }
+    sale.items.forEach(item => {
+        const product = localProducts.find(p => p.id === item.productId);
+        if (product && product.quantity !== 'unlimited') {
+            product.quantity -= item.quantity;
+            if (product.quantity < 0) product.quantity = 0;
         }
     });
     saveProducts(localProducts);
 
-    // save sale locally
     const sales = getSales();
     sales.push(sale);
     saveSales(sales);
 
-    // attach sale id to active shift and totals
     let shift = getActiveShift();
     if (!shift.sales) shift.sales = [];
     shift.sales.push(sale.id);
     shift.total = (shift.total || 0) + sale.total;
-    if (sale.paymentMethod === 'cash') shift.cashTotal = (shift.cashTotal || 0) + sale.total;
-    else shift.momoTotal = (shift.momoTotal || 0) + sale.total;
+    
+    if (sale.paymentMethod === 'cash') {
+        shift.cashTotal = (shift.cashTotal || 0) + sale.total;
+    } else {
+        shift.momoTotal = (shift.momoTotal || 0) + sale.total;
+    }
+    
     saveActiveShift(shift);
 
-    // Clear cart and refresh UI
     saveCart([]);
     updateCartDisplay();
     loadProducts();
     checkLowStock();
-    loadReceipts(); // refresh receipts list
+    loadReceipts();
     updateShiftDisplay();
     showReceipt(sale);
-    alert('Sale recorded successfully!');
+    
+    alert('✅ Sale completed successfully!');
 }
 
-// -------------------- Sales / Receipts --------------------
-function getSales() { return safeParse(LS_SALES); }
-function saveSales(sales) { safeSave(LS_SALES, sales); }
+// ==================== SALES / RECEIPTS MANAGEMENT ====================
+function getSales() { 
+    return safeParse(LS_SALES); 
+}
+
+function saveSales(sales) { 
+    safeSave(LS_SALES, sales); 
+}
 
 function loadReceipts() {
     const receiptsList = document.getElementById('receipts-list');
     if (!receiptsList) return;
-    receiptsList.innerHTML = '';
 
     const dateFilterInput = document.getElementById('receipt-date-filter');
     const filterDate = dateFilterInput ? dateFilterInput.value : '';
+    
     let sales = getSales();
 
-    // If online, try to sync sales from PB into local
-    if (navigator.onLine) {
-        // best-effort; don't await (but try)
-        pb.collection('sales').getFullList({ sort: '-created' })
-            .then(records => {
-                // convert to our local format if needed and merge
-                const pbSales = records.map(r => ({
-                    id: r.id || Date.now(),
-                    date: r.date || r.created,
-                    items: r.items || [],
-                    total: r.total || 0,
-                    paymentMethod: r.payment_method || 'unknown',
-                    shiftId: r.shiftId || null,
-                    refunded: r.refunded || false
-                }));
-                // merge non-duplicated
-                const local = getSales();
-                pbSales.forEach(ps => {
-                    if (!local.some(ls => String(ls.id) === String(ps.id))) local.push(ps);
+    if (navigator.onLine && USE_POCKETBASE && pb) {
+        syncReceiptsFromPocketbase()
+            .then(pbSales => {
+                const localSales = getSales();
+                const mergedSales = [...localSales];
+                
+                pbSales.forEach(pbSale => {
+                    if (!mergedSales.some(ls => ls.id === pbSale.id)) {
+                        mergedSales.push(pbSale);
+                    }
                 });
-                saveSales(local);
-                // re-render
-                renderReceiptsList(filterDate);
-            }).catch(err => {
-                console.warn('Failed to sync sales from PB', err);
-                renderReceiptsList(filterDate);
+                
+                saveSales(mergedSales);
+                renderReceiptsList(mergedSales, filterDate);
+            })
+            .catch(err => {
+                console.warn('Failed to sync receipts from PocketBase', err);
+                renderReceiptsList(sales, filterDate);
             });
     } else {
-        renderReceiptsList(filterDate);
+        renderReceiptsList(sales, filterDate);
     }
 }
 
-function renderReceiptsList(filterDate) {
+function renderReceiptsList(sales, filterDate) {
     const receiptsList = document.getElementById('receipts-list');
     if (!receiptsList) return;
+    
     receiptsList.innerHTML = '';
 
-    const dateFilterInput = document.getElementById('receipt-date-filter');
-    const filterDate = dateFilterInput ? dateFilterInput.value : '';
+    const filtered = filterDate ? 
+        sales.filter(s => s.date && s.date.split('T')[0] === filterDate) : 
+        sales;
 
-    let sales = getSales();
-    let filtered = filterDate ? sales.filter(s => s.date.split('T')[0] === filterDate) : sales;
-    if (!filtered || filtered.length === 0) {
-        receiptsList.innerHTML = '<p class="no-receipts">No receipts found for this date.</p>';
+    if (filtered.length === 0) {
+        receiptsList.innerHTML = '<p class="no-receipts">No receipts found</p>';
         return;
     }
 
-    filtered = filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
+    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
     filtered.forEach(sale => {
-        const el = document.createElement('div');
-        el.className = `receipt-item ${sale.refunded ? 'refunded' : ''}`;
-        const itemsCount = (sale.items || []).reduce((sum,it) => sum + (it.quantity||0), 0);
-        el.innerHTML = `
-            <h3>Receipt #${sale.id} ${sale.refunded ? '(Refunded)' : ''}</h3>
-            <p>${new Date(sale.date).toLocaleString()}</p>
-            <p>${sale.total} RWF (${(sale.paymentMethod||'').toUpperCase()}) - ${itemsCount} items</p>
+        const receiptItem = document.createElement('div');
+        receiptItem.className = 'receipt-item';
+        const itemsCount = sale.items ? sale.items.reduce((sum, item) => sum + item.quantity, 0) : 0;
+        
+        receiptItem.innerHTML = `
+            <div class="receipt-header">
+                <span class="receipt-id">Receipt #${sale.id ? sale.id.slice(-6) : 'N/A'}</span>
+                <span class="receipt-date">${sale.date ? new Date(sale.date).toLocaleDateString() : 'Unknown date'}</span>
+            </div>
+            <div class="receipt-details">
+                <span class="receipt-total">${sale.total || 0} RWF</span>
+                <span class="receipt-payment">${(sale.paymentMethod || 'unknown').toUpperCase()}</span>
+                <span class="receipt-items">${itemsCount} items</span>
+            </div>
         `;
-        el.addEventListener('click', () => showReceipt(sale));
-        receiptsList.appendChild(el);
+        
+        receiptItem.addEventListener('click', () => showReceipt(sale));
+        receiptsList.appendChild(receiptItem);
     });
 }
 
 function showReceipt(sale) {
     const modal = document.getElementById('receipt-modal');
     const content = document.getElementById('receipt-content');
+    
     if (!modal || !content) return;
 
     let itemsHtml = '';
-    sale.items.forEach(it => {
-        itemsHtml += `<tr><td>${escapeHtml(it.name)}</td><td>${it.quantity}</td><td>${it.price} RWF</td><td>${it.price * it.quantity} RWF</td></tr>`;
-    });
+    if (sale.items && sale.items.length > 0) {
+        sale.items.forEach(item => {
+            itemsHtml += `
+                <tr>
+                    <td>${escapeHtml(item.name || 'Unknown')}</td>
+                    <td>${item.quantity || 0}</td>
+                    <td>${item.price || 0} RWF</td>
+                    <td>${(item.price || 0) * (item.quantity || 0)} RWF</td>
+                </tr>
+            `;
+        });
+    } else {
+        itemsHtml = '<tr><td colspan="4">No items</td></tr>';
+    }
 
     content.innerHTML = `
-        <h2>Receipt #${sale.id}</h2>
-        <p>${new Date(sale.date).toLocaleString()}</p>
-        <table class="summary-table">
-            <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+        <h2>Receipt #${sale.id ? sale.id.slice(-6) : 'N/A'}</h2>
+        <p>${sale.date ? new Date(sale.date).toLocaleString() : 'Unknown date'}</p>
+        <table class="receipt-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
             <tbody>${itemsHtml}</tbody>
-            <tfoot><tr><td colspan="3" style="text-align:right"><strong>Grand Total</strong></td><td><strong>${sale.total} RWF</strong></td></tr></tfoot>
+            <tfoot>
+                <tr>
+                    <td colspan="3" style="text-align:right"><strong>Grand Total</strong></td>
+                    <td><strong>${sale.total || 0} RWF</strong></td>
+                </tr>
+            </tfoot>
         </table>
-        <div style="margin-top:12px;">
-            ${sale.refunded ? `<div class="alert alert-warning">Refunded on ${new Date(sale.refundDate).toLocaleString()}</div>` : `<button id="refund-receipt-btn" class="btn btn-danger" data-id="${sale.id}">Process Refund</button>`}
+        <div class="receipt-actions">
+            <p><strong>Payment Method:</strong> ${(sale.paymentMethod || 'unknown').toUpperCase()}</p>
             <button id="copy-receipt-btn" class="btn">Copy Receipt</button>
         </div>
     `;
-    // attach copy
-    setTimeout(() => {
-        const copyBtn = document.getElementById('copy-receipt-btn');
-        if (copyBtn) copyBtn.onclick = () => {
-            const text = `Receipt #${sale.id}\nDate: ${new Date(sale.date).toLocaleString()}\n\n` + sale.items.map(it => `${it.name} - ${it.quantity} × ${it.price} RWF = ${it.price * it.quantity} RWF`).join('\n') + `\n\nTotal: ${sale.total} RWF`;
-            navigator.clipboard.writeText(text).then(()=>alert('Receipt copied to clipboard')).catch(()=>alert('Copy failed'));
+
+    const closeBtn = document.querySelector('.close');
+    if (closeBtn) {
+        closeBtn.onclick = () => modal.style.display = 'none';
+    }
+
+    const copyBtn = document.getElementById('copy-receipt-btn');
+    if (copyBtn) {
+        copyBtn.onclick = () => {
+            const receiptText = `Receipt #${sale.id ? sale.id.slice(-6) : 'N/A'}\nDate: ${sale.date ? new Date(sale.date).toLocaleString() : 'Unknown date'}\n\n` +
+                (sale.items ? sale.items.map(item => 
+                    `${item.name || 'Unknown'} - ${item.quantity || 0} × ${item.price || 0} RWF = ${(item.price || 0) * (item.quantity || 0)} RWF`
+                ).join('\n') : 'No items') +
+                `\n\nTotal: ${sale.total || 0} RWF\nPayment: ${(sale.paymentMethod || 'unknown').toUpperCase()}`;
+            
+            navigator.clipboard.writeText(receiptText)
+                .then(() => alert('Receipt copied to clipboard'))
+                .catch(() => alert('Failed to copy receipt'));
         };
-        const refundBtn = document.getElementById('refund-receipt-btn');
-        if (refundBtn) refundBtn.onclick = () => processRefund(parseInt(refundBtn.dataset.id));
-    },50);
+    }
 
     modal.style.display = 'block';
 }
 
-// Refund processing (local-only + attempt PB sync)
-function processRefund(receiptId) {
-    if (!confirm('Are you sure you want to refund this receipt?')) return;
-    const sales = getSales();
-    const idx = sales.findIndex(s => String(s.id) === String(receiptId));
-    if (idx === -1) return alert('Receipt not found');
-
-    const sale = sales[idx];
-    if (sale.refunded) return alert('Already refunded');
-
-    const activeShift = getActiveShift();
-    if (!activeShift) return alert('Please start a shift to process refunds');
-
-    // Mark refunded
-    sale.refunded = true;
-    sale.refundDate = new Date().toISOString();
-    sale.refundShiftId = activeShift.id;
-
-    // Adjust local stock
-    const products = getProducts();
-    sale.items.forEach(it => {
-        const pidx = products.findIndex(p => p.id === it.productId);
-        if (pidx !== -1) {
-            if (products[pidx].quantity === 'unlimited') {
-                // do nothing
-            } else {
-                products[pidx].quantity += it.quantity;
-            }
-        }
-    });
-    saveProducts(products);
-
-    // Adjust shift totals
-    if (sale.paymentMethod === 'cash') activeShift.cashTotal = (activeShift.cashTotal || 0) - sale.total;
-    else activeShift.momoTotal = (activeShift.momoTotal || 0) - sale.total;
-    activeShift.total = (activeShift.total || 0) - sale.total;
-
-    // remove sale id from shift.sales
-    if (activeShift.sales) {
-        const si = activeShift.sales.indexOf(receiptId);
-        if (si !== -1) activeShift.sales.splice(si,1);
-    }
-    if (!activeShift.refunds) activeShift.refunds = [];
-    activeShift.refunds.push(receiptId);
-
-    saveActiveShift(activeShift);
-    saveSales(sales);
-
-    // attempt PB update
-    if (navigator.onLine) {
-        // Try to update PB sale record (if exists) and restore stock in PB
-        (async () => {
-            try {
-                // update sale record in PB if possible
-                try {
-                    const pbSale = await pb.collection('sales').getOne(String(receiptId));
-                    if (pbSale) {
-                        await pb.collection('sales').update(pbSale.id, { refunded: true, refundDate: sale.refundDate, refundShiftId: sale.refundShiftId });
-                    }
-                } catch(e) { /* probably not found or PB uses different id format */ }
-
-                // restore stock for each item
-                for (const it of sale.items) {
-                    try {
-                        const pbProd = await pb.collection('products').getOne(it.productId);
-                        if (pbProd && pbProd.quantity !== 'unlimited') {
-                            await pb.collection('products').update(pbProd.id, { quantity: parseInt(pbProd.quantity) + it.quantity });
-                        }
-                    } catch(e) {}
-                }
-            } catch(e) { console.warn('PB refund sync failed', e); }
-        })();
-    }
-
-    // Refresh UI
-    loadProducts();
-    loadReceipts();
-    updateShiftDisplay();
-    checkLowStock();
-    alert('Refund processed successfully!');
-    const modal = document.getElementById('receipt-modal');
-    if (modal) modal.style.display = 'none';
-}
-
-// -------------------- Summary (period) --------------------
+// ==================== SUMMARY TAB ====================
 function loadSummary() {
     const container = document.getElementById('summary-content');
     if (!container) return;
+    
     container.innerHTML = '';
 
     const startDateElem = document.getElementById('start-date');
     const endDateElem = document.getElementById('end-date');
     const startDate = startDateElem ? startDateElem.value : '';
     const endDate = endDateElem ? endDateElem.value : '';
-    const sales = getSales().filter(s => !s.refunded);
-
+    
+    const sales = getSales();
     const filtered = sales.filter(s => {
-        const d = s.date.split('T')[0];
-        if (startDate && d < startDate) return false;
-        if (endDate && d > endDate) return false;
-        return true;
+        if (!s.date) return false;
+        const saleDate = s.date.split('T')[0];
+        return (!startDate || saleDate >= startDate) && (!endDate || saleDate <= endDate);
     });
 
     if (filtered.length === 0) {
-        container.innerHTML = '<p class="no-summary">No sales for this range.</p>';
+        container.innerHTML = '<p class="no-summary">No sales found for the selected period</p>';
         return;
     }
 
-    const cashTotal = filtered.filter(s=>s.paymentMethod==='cash').reduce((a,b)=>a+b.total,0);
-    const momoTotal = filtered.filter(s=>s.paymentMethod==='momo').reduce((a,b)=>a+b.total,0);
+    const cashTotal = filtered
+        .filter(s => s.paymentMethod === 'cash')
+        .reduce((sum, sale) => sum + (sale.total || 0), 0);
+        
+    const momoTotal = filtered
+        .filter(s => s.paymentMethod === 'momo')
+        .reduce((sum, sale) => sum + (sale.total || 0), 0);
+        
     const grandTotal = cashTotal + momoTotal;
     const transactionCount = filtered.length;
 
-    // item breakdown
-    const breakdown = {};
+    const itemBreakdown = {};
     filtered.forEach(sale => {
-        (sale.items||[]).forEach(it => {
-            if (!breakdown[it.name]) breakdown[it.name] = { quantity:0, price: it.price, total:0 };
-            breakdown[it.name].quantity += it.quantity;
-            breakdown[it.name].total += it.quantity * it.price;
-        });
+        if (sale.items) {
+            sale.items.forEach(item => {
+                if (!itemBreakdown[item.name]) {
+                    itemBreakdown[item.name] = {
+                        quantity: 0,
+                        price: item.price || 0,
+                        total: 0
+                    };
+                }
+                itemBreakdown[item.name].quantity += item.quantity || 0;
+                itemBreakdown[item.name].total += (item.price || 0) * (item.quantity || 0);
+            });
+        }
     });
 
-    const products = getProducts();
     let itemsHtml = '';
-    for (const [name,data] of Object.entries(breakdown)) {
-        const prod = products.find(p => p.name === name);
-        const remaining = prod ? prod.quantity : 'N/A';
-        itemsHtml += `<tr><td>${escapeHtml(name)}</td><td>${data.quantity}</td><td>${remaining}</td><td>${data.price} RWF</td><td>${data.total} RWF</td></tr>`;
-    }
+    Object.entries(itemBreakdown).forEach(([name, data]) => {
+        itemsHtml += `
+            <tr>
+                <td>${escapeHtml(name)}</td>
+                <td>${data.quantity}</td>
+                <td>${data.price} RWF</td>
+                <td>${data.total} RWF</td>
+            </tr>
+        `;
+    });
 
     container.innerHTML = `
-        <div class="summary-item">
+        <div class="summary-card">
             <h3>Sales Summary</h3>
-            <p>Date range: ${startDate || 'N/A'} to ${endDate || 'N/A'}</p>
-            <p>Total transactions: ${transactionCount}</p>
-            <p>Cash: ${cashTotal} RWF</p>
-            <p>MoMo: ${momoTotal} RWF</p>
-            <p><strong>Grand Total: ${grandTotal} RWF</strong></p>
+            <div class="summary-row">
+                <span>Date Range:</span>
+                <span>${startDate || 'Start'} to ${endDate || 'End'}</span>
+            </div>
+            <div class="summary-row">
+                <span>Total Transactions:</span>
+                <span>${transactionCount}</span>
+            </div>
+            <div class="summary-row">
+                <span>Cash Sales:</span>
+                <span>${cashTotal.toFixed(2)} RWF</span>
+            </div>
+            <div class="summary-row">
+                <span>MoMo Sales:</span>
+                <span>${momoTotal.toFixed(2)} RWF</span>
+            </div>
+            <div class="summary-row">
+                <span><strong>Grand Total:</strong></span>
+                <span><strong>${grandTotal.toFixed(2)} RWF</strong></span>
+            </div>
         </div>
 
-        <div class="summary-item">
+        <div class="summary-card">
             <h3>Item Breakdown</h3>
             <table class="summary-table">
-                <thead><tr><th>Item</th><th>Qty Sold</th><th>Stock Left</th><th>Unit Price</th><th>Total</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Quantity Sold</th>
+                        <th>Unit Price</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
                 <tbody>${itemsHtml}</tbody>
             </table>
         </div>
     `;
 }
 
-// -------------------- Stock management (local + PB sync) --------------------
-function initStockTab() {
-    const addBtn = document.getElementById('add-item-btn');
-    if (addBtn) addBtn.addEventListener('click', addStockItem);
-    loadStockItems();
-}
-
+// ==================== STOCK MANAGEMENT ====================
 function loadStockItems() {
     const container = document.getElementById('stock-items');
     if (!container) return;
+    
     const products = getProducts();
     container.innerHTML = '';
-    if (!products || products.length === 0) {
-        container.innerHTML = '<p>No items in stock.</p>';
+
+    if (products.length === 0) {
+        container.innerHTML = '<p>No items in stock</p>';
         return;
     }
-    products.forEach(p => {
+
+    products.forEach(product => {
         const stockItem = document.createElement('div');
         stockItem.className = 'stock-item';
-        const stockDisplay = p.quantity === 'unlimited' ? 'Unlimited' : p.quantity;
-        const lowClass = (p.quantity !== 'unlimited' && p.quantity < 5) ? 'low-stock' : '';
+        const stockDisplay = product.quantity === 'unlimited' ? 'Unlimited' : product.quantity;
+        const lowStockClass = (product.quantity !== 'unlimited' && product.quantity < 5) ? 'low-stock' : '';
+        
         stockItem.innerHTML = `
-            <span>${escapeHtml(p.name)}</span>
-            <span>${p.price} RWF</span>
-            <span class="${lowClass}">${stockDisplay}</span>
-            <button class="edit-btn" data-id="${p.id}">Edit</button>
-            <button class="delete-btn" data-id="${p.id}">Delete</button>
+            <div class="stock-item-info">
+                <div class="stock-item-name">${escapeHtml(product.name)}</div>
+                <div class="stock-item-details">
+                    <span>Price: ${product.price} RWF</span>
+                    <span class="${lowStockClass}">Stock: ${stockDisplay}</span>
+                </div>
+            </div>
+            <div class="stock-item-actions">
+                <button class="edit-btn" data-id="${product.id}">Edit</button>
+                <button class="delete-btn" data-id="${product.id}">Delete</button>
+            </div>
         `;
+        
         container.appendChild(stockItem);
     });
 
     setTimeout(() => {
-        document.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', e => editStockItem(e.currentTarget.dataset.id)));
-        document.querySelectorAll('.delete-btn').forEach(b => b.addEventListener('click', e => deleteStockItem(e.currentTarget.dataset.id)));
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => editStockItem(e.currentTarget.getAttribute('data-id')));
+        });
+        
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => deleteStockItem(e.currentTarget.getAttribute('data-id')));
+        });
     }, 50);
 }
 
-function addStockItem() {
-    const nameI = document.getElementById('item-name');
-    const priceI = document.getElementById('item-price');
-    const qtyI = document.getElementById('item-quantity');
-    if (!nameI || !priceI || !qtyI) return alert('Missing input elements');
+async function addStockItem() {
+    const nameInput = document.getElementById('item-name');
+    const priceInput = document.getElementById('item-price');
+    const quantityInput = document.getElementById('item-quantity');
+    
+    if (!nameInput || !priceInput || !quantityInput) return;
 
-    const name = nameI.value.trim();
-    const price = parseFloat(priceI.value);
-    let quantity = qtyI.value.trim();
+    const name = nameInput.value.trim();
+    const price = parseFloat(priceInput.value);
+    let quantity = quantityInput.value.trim();
 
-    if (!name || isNaN(price)) return alert('Please fill valid name and price');
-    if (quantity.toLowerCase() === 'unlimited') quantity = 'unlimited';
-    else {
-        quantity = parseInt(quantity);
-        if (isNaN(quantity) || quantity < 0) return alert('Quantity must be positive or "unlimited"');
+    if (!name) {
+        alert('Please enter a product name');
+        return;
     }
-
-    const products = getProducts();
-    const existing = products.find(p => p.name.toLowerCase() === name.toLowerCase());
-    if (existing) {
-        if (!confirm('Item exists — update it?')) return;
-        existing.price = price;
-        existing.quantity = quantity;
-        saveProducts(products);
-        // try PB update
-        if (navigator.onLine) {
-            try { pb.collection('products').update(existing.id, { name: existing.name, price: existing.price, quantity: existing.quantity }); } catch(e){/*ignore*/ }
-        }
-        loadStockItems(); loadProducts(); checkLowStock();
-        nameI.value = priceI.value = qtyI.value = '';
+    
+    if (isNaN(price) || price < 0) {
+        alert('Please enter a valid price');
         return;
     }
 
-    const newItem = { id: String(Date.now()) + Math.random(), name, price, quantity };
-    products.push(newItem);
+    if (quantity.toLowerCase() === 'unlimited') {
+        quantity = 'unlimited';
+    } else {
+        quantity = parseInt(quantity);
+        if (isNaN(quantity) || quantity < 0) {
+            alert('Quantity must be a positive number or "unlimited"');
+            return;
+        }
+    }
+
+    const products = getProducts();
+    const existingIndex = products.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+
+    if (existingIndex !== -1) {
+        if (!confirm('Product already exists. Update it?')) return;
+        
+        products[existingIndex].price = price;
+        products[existingIndex].quantity = quantity;
+        
+        if (navigator.onLine && USE_POCKETBASE && pb) {
+            try {
+                await pb.collection(PB_PRODUCTS).update(products[existingIndex].id, {
+                    name: products[existingIndex].name,
+                    price: products[existingIndex].price,
+                    quantity: products[existingIndex].quantity
+                });
+                console.log('✅ Product updated in PocketBase');
+            } catch (error) {
+                console.error('❌ Failed to update product in PocketBase:', error);
+            }
+        }
+    } else {
+        const newProduct = {
+            id: 'prod_' + Date.now(),
+            name: name,
+            price: price,
+            quantity: quantity
+        };
+        products.push(newProduct);
+
+        if (navigator.onLine && USE_POCKETBASE && pb) {
+            try {
+                const result = await pb.collection(PB_PRODUCTS).create({
+                    name: newProduct.name,
+                    price: newProduct.price,
+                    quantity: newProduct.quantity
+                });
+                newProduct.id = result.id;
+                console.log('✅ Product created in PocketBase');
+            } catch (error) {
+                console.error('❌ Failed to create product in PocketBase:', error);
+            }
+        }
+    }
+
+    saveProducts(products);
+    loadStockItems();
+    loadProducts();
+    checkLowStock();
+
+    nameInput.value = '';
+    priceInput.value = '';
+    quantityInput.value = '';
+}
+
+async function editStockItem(productId) {
+    const products = getProducts();
+    const product = products.find(p => p.id === productId);
+    
+    if (!product) {
+        alert('Product not found');
+        return;
+    }
+
+    const newName = prompt('Enter new name:', product.name);
+    if (newName === null) return;
+
+    const newPrice = parseFloat(prompt('Enter new price:', product.price));
+    if (isNaN(newPrice)) {
+        alert('Invalid price');
+        return;
+    }
+
+    let newQuantity = prompt('Enter new quantity (number or "unlimited"):', 
+        product.quantity === 'unlimited' ? 'unlimited' : product.quantity);
+    
+    if (newQuantity === null) return;
+
+    if (newQuantity.toLowerCase() === 'unlimited') {
+        newQuantity = 'unlimited';
+    } else {
+        newQuantity = parseInt(newQuantity);
+        if (isNaN(newQuantity) || newQuantity < 0) {
+            alert('Invalid quantity');
+            return;
+        }
+    }
+
+    product.name = newName;
+    product.price = newPrice;
+    product.quantity = newQuantity;
+
+    if (navigator.onLine && USE_POCKETBASE && pb) {
+        try {
+            await pb.collection(PB_PRODUCTS).update(productId, {
+                name: newName,
+                price: newPrice,
+                quantity: newQuantity
+            });
+            console.log('✅ Product updated in PocketBase');
+        } catch (error) {
+            console.error('❌ Failed to update product in PocketBase:', error);
+        }
+    }
+
+    saveProducts(products);
+    loadStockItems();
+    loadProducts();
+    checkLowStock();
+}
+
+async function deleteStockItem(productId) {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+
+    const products = getProducts().filter(p => p.id !== productId);
     saveProducts(products);
 
-    // Try to insert into PB (best-effort)
-    if (navigator.onLine) {
-        pb.collection('products').create({
-            name: newItem.name,
-            price: newItem.price,
-            quantity: newItem.quantity
-        }).then(res => {
-            // if PB created with different id, update local mapping where name matches
-            // we keep local id as string; future sync will fetch PB and normalize.
-        }).catch(err => console.warn('Failed to create PB product', err));
+    if (navigator.onLine && USE_POCKETBASE && pb) {
+        try {
+            await pb.collection(PB_PRODUCTS).delete(productId);
+            console.log('✅ Product deleted from PocketBase');
+        } catch (error) {
+            console.error('❌ Failed to delete product from PocketBase:', error);
+        }
     }
 
     loadStockItems();
     loadProducts();
     checkLowStock();
-    nameI.value = priceI.value = qtyI.value = '';
 }
 
-function editStockItem(productId) {
-    const products = getProducts();
-    const idx = products.findIndex(p => String(p.id) === String(productId));
-    if (idx === -1) return alert('Product not found');
-    const product = products[idx];
-
-    const newName = prompt('New name:', product.name);
-    if (newName === null) return;
-    const newPrice = parseFloat(prompt('New price:', product.price));
-    if (isNaN(newPrice)) return alert('Price invalid');
-
-    let newQty = prompt('New quantity (number or "unlimited"):', product.quantity === 'unlimited' ? 'unlimited' : product.quantity);
-    if (newQty === null) return;
-    if (newQty.toLowerCase && newQty.toLowerCase() === 'unlimited') newQty = 'unlimited';
-    else {
-        newQty = parseInt(newQty);
-        if (isNaN(newQty) || newQty < 0) return alert('Quantity invalid');
-    }
-
-    product.name = newName;
-    product.price = newPrice;
-    product.quantity = newQty;
-    saveProducts(products);
-
-    if (navigator.onLine) {
-        // best-effort update: try to find PB product by name or id
-        (async () => {
-            try {
-                // if product.id looks like PB id (24-char) try update
-                try { await pb.collection('products').update(product.id, { name: product.name, price: product.price, quantity: product.quantity }); }
-                catch(e) {
-                    // fallback: try to find by name then update
-                    const found = await pb.collection('products').getFullList({ filter: `name = "${product.name}"`});
-                    if (found && found.length) {
-                        await pb.collection('products').update(found[0].id, { name: product.name, price: product.price, quantity: product.quantity });
-                    }
-                }
-            } catch(e){}
-        })();
-    }
-
-    loadStockItems(); loadProducts(); checkLowStock();
+// ==================== SHIFT MANAGEMENT ====================
+function getActiveShift() {
+    const shifts = safeParse(LS_ACTIVE_SHIFT);
+    return shifts.length > 0 ? shifts[0] : null;
 }
 
-function deleteStockItem(productId) {
-    if (!confirm('Delete this item?')) return;
-    const products = getProducts().filter(p => String(p.id) !== String(productId));
-    saveProducts(products);
-
-    // best-effort PB deletion
-    if (navigator.onLine) {
-        pb.collection('products').delete(productId).catch(()=>{/* ignore */});
-    }
-
-    loadStockItems(); loadProducts(); checkLowStock();
+function saveActiveShift(shift) {
+    safeSave(LS_ACTIVE_SHIFT, shift ? [shift] : []);
 }
 
-// -------------------- Shift management --------------------
-function initShiftTab() {
-    const startBtn = document.getElementById('start-shift-btn');
-    const endBtn = document.getElementById('end-shift-btn');
-    if (startBtn) startBtn.addEventListener('click', startShift);
-    if (endBtn) endBtn.addEventListener('click', endShift);
-    checkActiveShift();
-    updateShiftDisplay();
+function getShiftHistory() {
+    return safeParse(LS_SHIFT_HISTORY);
 }
 
-function getActiveShift() { try { return JSON.parse(localStorage.getItem(LS_ACTIVE_SHIFT)) || null; } catch(e){return null;} }
-function saveActiveShift(shift) { safeSave(LS_ACTIVE_SHIFT, shift); }
-function getShiftHistory() { return safeParse(LS_SHIFT_HISTORY); }
-function saveShiftHistory(history) { safeSave(LS_SHIFT_HISTORY, history); }
+function saveShiftHistory(history) {
+    safeSave(LS_SHIFT_HISTORY, history);
+}
 
 function startShift() {
-    const cashier = prompt('Cashier name:', 'Cashier') || 'Cashier';
-    const startingCash = parseFloat(prompt('Starting cash:', '0')) || 0;
-    const shift = { id: Date.now(), startTime: new Date().toISOString(), endTime: null, sales: [], cashTotal:0, momoTotal:0, total:0, cashier, startingCash };
+    const cashier = prompt('Enter cashier name:', 'Cashier') || 'Cashier';
+    const startingCash = parseFloat(prompt('Enter starting cash amount:', '0')) || 0;
+
+    const shift = {
+        id: 'shift_' + Date.now(),
+        startTime: new Date().toISOString(),
+        endTime: null,
+        cashier: cashier,
+        startingCash: startingCash,
+        sales: [],
+        refunds: [],
+        expenses: [],
+        cashTotal: 0,
+        momoTotal: 0,
+        total: 0
+    };
+
     saveActiveShift(shift);
-    checkActiveShift();
     updateShiftDisplay();
-    alert(`Shift started: ${shift.id}`);
+    alert(`Shift #${shift.id.slice(-6)} started`);
 }
 
 function endShift() {
-    const active = getActiveShift();
-    if (!active) return alert('No active shift');
-    if (getCart().length > 0 && !confirm('Cart not empty. End shift anyway?')) return;
-
-    active.endTime = new Date().toISOString();
-    // store to history
-    const history = getShiftHistory();
-    history.push(active);
-    saveShiftHistory(history);
-    // remove active
-    localStorage.removeItem(LS_ACTIVE_SHIFT);
-    checkActiveShift();
-    updateShiftDisplay();
-    alert(`Shift ended: ${active.id}`);
-}
-
-function checkActiveShift() {
-    const active = getActiveShift();
-    const shiftStatus = document.getElementById('shift-status');
-    const startBtn = document.getElementById('start-shift-btn');
-    const endBtn = document.getElementById('end-shift-btn');
-    const checkoutBtn = document.getElementById('checkout-btn');
-
-    if (shiftStatus) {
-        if (active) {
-            shiftStatus.className = 'shift-status shift-on';
-            shiftStatus.innerHTML = `<i class="fas fa-user-clock"></i> Active (Started ${new Date(active.startTime).toLocaleTimeString()})`;
-        } else {
-            shiftStatus.className = 'shift-status shift-off';
-            shiftStatus.innerHTML = `<i class="fas fa-user-clock"></i> Not started`;
-        }
+    const activeShift = getActiveShift();
+    if (!activeShift) {
+        alert('No active shift to end');
+        return;
     }
-    if (startBtn) startBtn.disabled = !!active;
-    if (endBtn) endBtn.disabled = !active;
-    if (checkoutBtn) checkoutBtn.disabled = (getCart().length === 0) || !active;
+
+    if (getCart().length > 0 && !confirm('There are items in the cart. End shift anyway?')) {
+        return;
+    }
+
+    activeShift.endTime = new Date().toISOString();
+
+    const history = getShiftHistory();
+    history.push(activeShift);
+    saveShiftHistory(history);
+
+    saveActiveShift(null);
+    updateShiftDisplay();
+
+    const summary = `
+        Shift #${activeShift.id.slice(-6)} ended
+        Cashier: ${activeShift.cashier}
+        Duration: ${formatDuration(activeShift.startTime, activeShift.endTime)}
+        Total Sales: ${activeShift.total} RWF
+        Cash Sales: ${activeShift.cashTotal} RWF
+        MoMo Sales: ${activeShift.momoTotal} RWF
+        Starting Cash: ${activeShift.startingCash} RWF
+    `;
+    
+    alert(summary);
 }
 
 function updateShiftDisplay() {
-    const el = document.getElementById('shift-summary');
-    if (!el) return;
+    const shiftStatus = document.getElementById('shift-status');
+    const startBtn = document.getElementById('start-shift-btn');
+    const endBtn = document.getElementById('end-shift-btn');
+    const shiftSummary = document.getElementById('shift-summary');
+    const checkoutBtn = document.getElementById('checkout-btn');
 
-    el.innerHTML = '<h3>Shift History</h3>';
-    const history = getShiftHistory().slice().reverse();
-    if (history.length === 0) { el.innerHTML += '<p>No shift history.</p>'; return; }
+    const activeShift = getActiveShift();
 
-    history.forEach(shift => {
-        const shiftEl = document.createElement('div');
-        shiftEl.className = 'shift-item';
-        shiftEl.innerHTML = `
-            <strong>Shift #${shift.id}</strong> (${shift.cashier}) - ${new Date(shift.startTime).toLocaleString()} to ${shift.endTime ? new Date(shift.endTime).toLocaleTimeString() : 'ongoing'} - Total: ${shift.total} RWF
-            <button class="view-shift" data-id="${shift.id}">View</button>
-        `;
-        el.appendChild(shiftEl);
-    });
+    if (shiftStatus) {
+        if (activeShift) {
+            shiftStatus.className = 'shift-status shift-on';
+            shiftStatus.textContent = `Shift: ON (${activeShift.cashier})`;
+        } else {
+            shiftStatus.className = 'shift-status shift-off';
+            shiftStatus.textContent = 'Shift: OFF';
+        }
+    }
+
+    if (startBtn) startBtn.disabled = !!activeShift;
+    if (endBtn) endBtn.disabled = !activeShift;
+    if (checkoutBtn) checkoutBtn.disabled = !activeShift || getCart().length === 0;
+
+    if (shiftSummary) {
+        if (activeShift) {
+            shiftSummary.innerHTML = `
+                <h3>Current Shift</h3>
+                <div class="shift-info">
+                    <p><strong>Cashier:</strong> ${activeShift.cashier}</p>
+                    <p><strong>Started:</strong> ${new Date(activeShift.startTime).toLocaleString()}</p>
+                    <p><strong>Total Sales:</strong> ${activeShift.total} RWF</p>
+                    <p><strong>Cash Sales:</strong> ${activeShift.cashTotal} RWF</p>
+                    <p><strong>MoMo Sales:</strong> ${activeShift.momoTotal} RWF</p>
+                </div>
+            `;
+        } else {
+            const history = getShiftHistory();
+            if (history.length > 0) {
+                const lastShift = history[history.length - 1];
+                shiftSummary.innerHTML = `
+                    <h3>Last Shift</h3>
+                    <div class="shift-info">
+                        <p><strong>Cashier:</strong> ${lastShift.cashier}</p>
+                        <p><strong>Duration:</strong> ${formatDuration(lastShift.startTime, lastShift.endTime)}</p>
+                        <p><strong>Total Sales:</strong> ${lastShift.total} RWF</p>
+                    </div>
+                `;
+            } else {
+                shiftSummary.innerHTML = '<p>No shift history</p>';
+            }
+        }
+    }
+}
+
+function formatDuration(start, end) {
+    if (!start || !end) return 'Unknown';
+    
+    const startTime = new Date(start);
+    const endTime = new Date(end);
+    const duration = endTime - startTime;
+    
+    const hours = Math.floor(duration / (1000 * 60 * 60));
+    const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return `${hours}h ${minutes}m`;
+}
+
+// ==================== EXPENSES MANAGEMENT ====================
+function getExpenses() {
+    return safeParse(LS_EXPENSES);
+}
+
+function saveExpenses(expenses) {
+    safeSave(LS_EXPENSES, expenses);
+}
+
+function addExpense() {
+    const activeShift = getActiveShift();
+    if (!activeShift) {
+        alert('Please start a shift before adding expenses');
+        return;
+    }
+
+    const nameInput = document.getElementById('expense-name');
+    const amountInput = document.getElementById('expense-amount');
+    const notesInput = document.getElementById('expense-notes');
+
+    if (!nameInput || !amountInput || !notesInput) return;
+
+    const name = nameInput.value.trim();
+    const amount = parseFloat(amountInput.value);
+    const notes = notesInput.value.trim();
+
+    const isNoteOnly = !name && amount === 0 && notes;
+
+    if (isNoteOnly) {
+        const expense = {
+            id: 'exp_' + Date.now(),
+            name: 'Note',
+            amount: 0,
+            notes: notes,
+            date: new Date().toISOString(),
+            shiftId: activeShift.id,
+            noteOnly: true
+        };
+
+        const expenses = getExpenses();
+        expenses.push(expense);
+        saveExpenses(expenses);
+    } else {
+        if (!name) {
+            alert('Please enter an expense name');
+            return;
+        }
+
+        if (isNaN(amount) || amount <= 0) {
+            alert('Please enter a valid amount');
+            return;
+        }
+
+        const expense = {
+            id: 'exp_' + Date.now(),
+            name: name,
+            amount: amount,
+            notes: notes,
+            date: new Date().toISOString(),
+            shiftId: activeShift.id,
+            noteOnly: false
+        };
+
+        const expenses = getExpenses();
+        expenses.push(expense);
+        saveExpenses(expenses);
+
+        if (!activeShift.expenses) activeShift.expenses = [];
+        activeShift.expenses.push(expense.id);
+        saveActiveShift(activeShift);
+    }
+
+    nameInput.value = '';
+    amountInput.value = '';
+    notesInput.value = '';
+    loadExpenses();
+}
+
+function loadExpenses() {
+    const container = document.getElementById('expenses-list');
+    if (!container) return;
+
+    const activeShift = getActiveShift();
+    if (!activeShift) {
+        container.innerHTML = '<p>Start a shift to record expenses</p>';
+        return;
+    }
+
+    const expenses = getExpenses()
+        .filter(exp => exp.shiftId === activeShift.id)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (expenses.length === 0) {
+        container.innerHTML = '<p>No expenses recorded for this shift</p>';
+        return;
+    }
+
+    container.innerHTML = expenses.map(exp => `
+        <div class="expense-item ${exp.noteOnly ? 'note-only' : ''}">
+            <div class="expense-header">
+                <span class="expense-name">${escapeHtml(exp.name)}</span>
+                ${!exp.noteOnly ? `<span class="expense-amount">${exp.amount} RWF</span>` : ''}
+            </div>
+            ${exp.notes ? `<div class="expense-notes">${escapeHtml(exp.notes)}</div>` : ''}
+            <div class="expense-date">${new Date(exp.date).toLocaleString()}</div>
+            <button class="delete-expense" data-id="${exp.id}">Delete</button>
+        </div>
+    `).join('');
 
     setTimeout(() => {
-        document.querySelectorAll('.view-shift').forEach(b => {
-            b.addEventListener('click', e => viewShiftDetails(e.currentTarget.dataset.id));
+        document.querySelectorAll('.delete-expense').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const expenseId = e.currentTarget.getAttribute('data-id');
+                if (confirm('Delete this expense/note?')) {
+                    deleteExpense(expenseId);
+                }
+            });
         });
     }, 50);
 }
 
-function viewShiftDetails(shiftId) {
-    const history = getShiftHistory();
-    const shift = history.find(s => String(s.id) === String(shiftId));
-    if (!shift) return alert('Shift not found');
-    // show details in modal or alert
-    const sales = getSales().filter(s => shift.sales.includes(s.id));
-    let text = `Shift #${shift.id}\nCashier: ${shift.cashier}\nStart: ${new Date(shift.startTime).toLocaleString()}\nEnd: ${shift.endTime ? new Date(shift.endTime).toLocaleString() : 'ongoing'}\nTotal: ${shift.total} RWF\nTransactions: ${sales.length}\n\nItems:\n`;
-    // breakdown
-    const breakdown = {};
-    sales.forEach(s => (s.items||[]).forEach(it => {
-        if (!breakdown[it.name]) breakdown[it.name] = {quantity:0,total:0,price:it.price};
-        breakdown[it.name].quantity += it.quantity;
-        breakdown[it.name].total += it.quantity * it.price;
-    }));
-    for (const [name, d] of Object.entries(breakdown)) text += `${name}: ${d.quantity} sold, total ${d.total} RWF\n`;
-    alert(text);
-}
+function deleteExpense(expenseId) {
+    const expenses = getExpenses().filter(exp => exp.id !== expenseId);
+    saveExpenses(expenses);
 
-// -------------------- Expenses --------------------
-function getExpenses() { return safeParse(LS_EXPENSES); }
-function saveExpenses(expenses) { safeSave(LS_EXPENSES, expenses); }
-
-function initExpensesTab() {
-    const addBtn = document.getElementById('add-expense-btn');
-    if (addBtn) addBtn.addEventListener('click', addExpenseHandler);
-}
-
-function addExpenseHandler() {
-    const active = getActiveShift();
-    if (!active) return alert('Start a shift first');
-
-    const nameI = document.getElementById('expense-name');
-    const amountI = document.getElementById('expense-amount');
-    const notesI = document.getElementById('expense-notes');
-    if (!nameI || !amountI || !notesI) return;
-
-    const name = nameI.value.trim();
-    const amount = parseFloat(amountI.value) || 0;
-    const notes = notesI.value.trim();
-    const isNoteOnly = notes && (!name && amount === 0);
-
-    if (isNoteOnly) {
-        addExpense('Note', 0, notes, true);
-    } else {
-        if (!name) return alert('Expense must have a name');
-        if (amount <= 0) return alert('Amount must be > 0');
-        addExpense(name, amount, notes, false);
+    const activeShift = getActiveShift();
+    if (activeShift && activeShift.expenses) {
+        activeShift.expenses = activeShift.expenses.filter(id => id !== expenseId);
+        saveActiveShift(activeShift);
     }
 
-    nameI.value = amountI.value = notesI.value = '';
     loadExpenses();
 }
 
-function addExpense(name = '', amount = 0, notes = '', noteOnly = false) {
-    const active = getActiveShift();
-    if (!active) return null;
-    const expenses = getExpenses();
-    const e = { id: Date.now(), name: noteOnly ? 'Note' : name, amount: noteOnly ? 0 : amount, notes, date: new Date().toISOString(), shiftId: active.id, noteOnly };
-    expenses.push(e);
-    saveExpenses(expenses);
-    if (!noteOnly) {
-        if (!active.expenses) active.expenses = [];
-        active.expenses.push(e.id);
-        saveActiveShift(active);
-    }
-    return e;
-}
-
-function loadExpenses() {
-    const el = document.getElementById('expenses-list');
-    if (!el) return;
-    const active = getActiveShift();
-    if (!active) { el.innerHTML = '<p>Start a shift to record expenses.</p>'; return; }
-    const expenses = getExpenses().filter(x => x.shiftId === active.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
-    if (expenses.length === 0) { el.innerHTML = '<p>No expenses recorded.</p>'; return; }
-    el.innerHTML = expenses.map(exp => `
-        <div class="expense-item ${exp.noteOnly?'note-only':''}">
-            <div>
-                <strong>${escapeHtml(exp.name)}</strong>
-                <div class="expense-date">${new Date(exp.date).toLocaleString()}</div>
-                ${exp.notes?`<div class="expense-notes">${escapeHtml(exp.notes)}</div>`:''}
-            </div>
-            ${exp.noteOnly?`<button class="delete-expense" data-id="${exp.id}">Delete</button>`:`<div><span class="expense-amount">${exp.amount} RWF</span><button class="delete-expense" data-id="${exp.id}">Delete</button></div>`}
-        </div>
-    `).join('');
-    setTimeout(()=>document.querySelectorAll('.delete-expense').forEach(b=>b.addEventListener('click', e=>{ const id = parseInt(e.currentTarget.dataset.id); if(confirm('Delete?')) { deleteExpense(id); loadExpenses(); }})),50);
-}
-
-function deleteExpense(id) {
-    const expenses = getExpenses().filter(x => x.id !== id);
-    saveExpenses(expenses);
-    // remove from active shift if applicable
-    const active = getActiveShift();
-    if (active && active.expenses) {
-        active.expenses = active.expenses.filter(eid => eid !== id);
-        saveActiveShift(active);
-    }
-}
-
-// -------------------- Utility & UI init --------------------
+// ==================== UTILITY FUNCTIONS ====================
 function checkLowStock() {
-    const alerts = document.getElementById('low-stock-alerts');
-    if (!alerts) return;
-    alerts.innerHTML = '';
-    const low = getProducts().filter(p => p.quantity !== 'unlimited' && p.quantity < 5);
-    if (low.length === 0) return;
-    const msg = low.length === 1 ? `${low[0].name} has only ${low[0].quantity} left` : `${low.length} items low: ${low.map(i=>i.name+'('+i.quantity+')').join(', ')}`;
+    const products = getProducts();
+    const lowStockItems = products.filter(p => 
+        p.quantity !== 'unlimited' && p.quantity < 5
+    );
+
+    if (lowStockItems.length > 0) {
+        console.warn('Low stock items:', lowStockItems);
+    }
+}
+
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
     const div = document.createElement('div');
-    div.className = 'alert alert-warning';
-    div.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${msg}`;
-    alerts.appendChild(div);
+    div.textContent = text;
+    return div.innerHTML;
 }
 
-function escapeHtml(s) {
-    if (!s && s !== 0) return '';
-    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
+// ==================== TAB MANAGEMENT ====================
+function setupTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            
+            btn.classList.add('active');
+            const tabId = btn.getAttribute('data-tab');
+            document.getElementById(tabId).classList.add('active');
+            
+            switch(tabId) {
+                case 'stock-tab':
+                    loadStockItems();
+                    break;
+                case 'receipts-tab':
+                    loadReceipts();
+                    break;
+                case 'summary-tab':
+                    break;
+                case 'shift-tab':
+                    updateShiftDisplay();
+                    break;
+                case 'expenses-tab':
+                    loadExpenses();
+                    break;
+            }
+        });
+    });
 }
 
-function formatDateTime(iso) {
-    try { return new Date(iso).toLocaleString(); } catch(e) { return iso; }
+function setupEventListeners() {
+    document.getElementById('checkout-btn').addEventListener('click', checkout);
+    document.getElementById('add-item-btn').addEventListener('click', addStockItem);
+    document.getElementById('load-receipts-btn').addEventListener('click', loadReceipts);
+    document.getElementById('load-summary-btn').addEventListener('click', loadSummary);
+    document.getElementById('start-shift-btn').addEventListener('click', startShift);
+    document.getElementById('end-shift-btn').addEventListener('click', endShift);
+    document.getElementById('add-expense-btn').addEventListener('click', addExpense);
+
+    const modal = document.getElementById('receipt-modal');
+    const closeBtn = document.querySelector('.close');
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            if (modal) modal.style.display = 'none';
+        });
+    }
+    
+    window.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
 }
 
-// -------------------- Persistence helpers referenced earlier --------------------
-function getProductsLocalOnly() { return getProducts(); } // alias if needed
+function loadInitialData() {
+    const today = new Date().toISOString().split('T')[0];
+    ['receipt-date-filter', 'start-date', 'end-date'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) element.value = today;
+    });
 
-// -------------------- Initialization --------------------
-function initApp() {
-    // DOM ready init functions
-    initPOSTab();
-    initReceiptsTab();
-    initSummaryTab();
-    initStockTab();
-    initShiftTab();
-    initExpensesTab();
     loadProducts();
     updateCartDisplay();
     loadReceipts();
-    checkLowStock();
-    // attach receipt modal close
-    const closeBtns = document.querySelectorAll('.modal .close, .modal .btn-close');
-    closeBtns.forEach(b => b.addEventListener('click', () => {
-        const modal = document.querySelector('.modal');
-        if (modal) modal.style.display = 'none';
-    }));
+    loadStockItems();
+    updateShiftDisplay();
+    loadExpenses();
+    showNetworkStatus();
+
+    window.addEventListener('online', showNetworkStatus);
+    window.addEventListener('offline', showNetworkStatus);
 }
 
-function initPOSTab() {
-    // checkout binding
-    const checkoutBtn = document.getElementById('checkout-btn');
-    if (checkoutBtn) checkoutBtn.addEventListener('click', checkout);
-    // load cart on start
-    updateCartDisplay();
+// ==================== APPLICATION INITIALIZATION ====================
+function initializeApp() {
+    console.log('🚀 Initializing Bakery POS System...');
+    
+    configurePocketBase();
+    loadDemoData();
+    setupTabs();
+    setupEventListeners();
+    loadInitialData();
+
+    console.log('✅ Bakery POS system initialized successfully');
+    console.log('📊 PocketBase Status:', USE_POCKETBASE ? 'Connected' : 'Disabled');
+    console.log('🌐 Environment:', window.location.hostname.includes('github.io') ? 'GitHub Pages' : 'Local');
 }
 
-// Receipts & summary init hooks
-function initReceiptsTab() {
-    const filterBtn = document.getElementById('filter-receipts-btn');
-    if (filterBtn) filterBtn.addEventListener('click', () => loadReceipts());
-    const dateFilter = document.getElementById('receipt-date-filter');
-    if (dateFilter) dateFilter.value = new Date().toISOString().split('T')[0];
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
 }
-
-function initSummaryTab() {
-    const filterBtn = document.getElementById('filter-summary-btn');
-    if (filterBtn) filterBtn.addEventListener('click', loadSummary);
-    const start = document.getElementById('start-date');
-    const end = document.getElementById('end-date');
-    const today = new Date().toISOString().split('T')[0];
-    if (start) start.value = today;
-    if (end) end.value = today;
-}
-
-// -------------------- On DOM ready --------------------
-document.addEventListener('DOMContentLoaded', () => {
-    initApp();
-    // hide receipt modal on outside click
-    window.addEventListener('click', (e) => {
-        const modal = document.getElementById('receipt-modal');
-        if (modal && e.target === modal) modal.style.display = 'none';
-    });
-    // initial sync attempt
-    if (navigator.onLine) syncProductsFromPocketbase().then(()=>{ loadProducts(); loadReceipts(); });
-});
-
-// End of script.js
