@@ -3,17 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="description" content="Offline-first Bakery Point-of-Sale">
     <title>Bakery POS</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
     <script src="https://unpkg.com/pocketbase/dist/pocketbase.umd.js"></script>
     <script>
         const isGitHubPages = window.location.hostname.includes('github.io');
-        const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-        const pb = isLocalhost ? new PocketBase('http://127.0.0.1:8090') : null;
+        const isLocalhost   = ['localhost','127.0.0.1'].includes(window.location.hostname);
+        const pb            = isLocalhost ? new PocketBase('http://127.0.0.1:8090') : null;
     </script>
 </head>
-<body>
 
+<body>
 <header>
     <h1>Bakery POS</h1>
     <div id="network-status" style="display:none;"></div>
@@ -28,7 +31,7 @@
     <button class="tab-btn" data-tab="expenses-tab">Expenses</button>
 </nav>
 
-<!-- Sales TAB -->
+<!-- ==========  SALES TAB  ========== -->
 <section id="sales-tab" class="tab active">
     <h2>Sales</h2>
     <div id="shift-status" class="shift-status shift-off">Shift: OFF</div>
@@ -48,20 +51,20 @@
     <button id="checkout-btn" class="btn btn-primary" disabled>Checkout</button>
 </section>
 
-<!-- Stock TAB -->
+<!-- ==========  STOCK TAB  ========== -->
 <section id="stock-tab" class="tab">
     <h2>Stock Management</h2>
     <div class="stock-form">
-        <input id="item-name" type="text" placeholder="Item name" required>
-        <input id="item-price" type="number" placeholder="Price" min="0" step="0.01" required>
-        <input id="item-quantity" type="text" placeholder="Quantity (number or unlimited)" required>
+        <input id="item-name"     type="text"   placeholder="Item name" required>
+        <input id="item-price"    type="number" placeholder="Price" min="0" step="0.01" required>
+        <input id="item-quantity" type="text"   placeholder="Quantity (number or unlimited)" required>
         <button id="add-item-btn" class="btn">Add / Update Product</button>
     </div>
     <h3>Current Stock</h3>
     <div id="stock-items"></div>
 </section>
 
-<!-- Receipts TAB -->
+<!-- ==========  RECEIPTS TAB  ========== -->
 <section id="receipts-tab" class="tab">
     <h2>Receipts History</h2>
     <div class="filter-section">
@@ -71,7 +74,7 @@
     <div id="receipts-list"></div>
 </section>
 
-<!-- Receipt Modal -->
+<!-- ==========  RECEIPT MODAL  ========== -->
 <div id="receipt-modal" class="modal">
     <div class="modal-content">
         <span class="close">&times;</span>
@@ -79,7 +82,7 @@
     </div>
 </div>
 
-<!-- Summary TAB -->
+<!-- ==========  SUMMARY TAB  ========== -->
 <section id="summary-tab" class="tab">
     <h2>Sales Summary</h2>
     <div class="filter-section">
@@ -90,7 +93,7 @@
     <div id="summary-content"></div>
 </section>
 
-<!-- Shift TAB -->
+<!-- ==========  SHIFT TAB  ========== -->
 <section id="shift-tab" class="tab">
     <h2>Shift Management</h2>
     <div class="shift-controls">
@@ -100,11 +103,11 @@
     <div id="shift-summary"></div>
 </section>
 
-<!-- Expenses TAB -->
+<!-- ==========  EXPENSES TAB  ========== -->
 <section id="expenses-tab" class="tab">
     <h2>Expenses & Notes</h2>
     <div class="expense-form">
-        <input type="text" id="expense-name" placeholder="Expense name (leave empty for note)">
+        <input type="text" id="expense-name"   placeholder="Expense name (leave empty for note)">
         <input type="number" id="expense-amount" placeholder="Amount (0 for note)" min="0" step="0.01">
         <textarea id="expense-notes" placeholder="Notes (optional)"></textarea>
         <button id="add-expense-btn" class="btn">Add Expense/Note</button>
@@ -113,17 +116,30 @@
     <div id="expenses-list"></div>
 </section>
 
-<!-- Demo Notice -->
-<div id="demo-notice" style="display: none;">
-    <div style="background: #f0f8ff; padding: 10px; margin: 10px 0; border-left: 4px solid #3b82f6;">
+<!-- ==========  OFFLINE BANNER  ========== -->
+<div id="offline-banner" style="display:none;position:fixed;top:0;left:0;right:0;background:#ef4444;color:#fff;text-align:center;padding:6px;font-size:14px;z-index:9999;">You are offline – data saved locally</div>
+
+<!-- ==========  DEMO NOTICE  ========== -->
+<div id="demo-notice" style="display:none;">
+    <div style="background:#f0f8ff;padding:10px;margin:10px 0;border-left:4px solid #3b82f6;">
         <strong>Demo Mode:</strong> Running on GitHub Pages. Data is stored locally in your browser.
     </div>
 </div>
 
 <script>
-    if (isGitHubPages) document.getElementById('demo-notice').style.display = 'block';
+    /* show demo banner on GitHub Pages */
+    if (isGitHubPages) document.getElementById('demo-notice').style.display='block';
+    /* show/hide offline banner */
+    window.addEventListener('online',()=>document.getElementById('offline-banner').style.display='none');
+    window.addEventListener('offline',()=>document.getElementById('offline-banner').style.display='block');
 </script>
 
 <script src="script.js"></script>
+<script>
+    /* register service worker for offline use (PWA) – fails gracefully on GitHub Pages */
+    if ('serviceWorker' in navigator && isLocalhost) {
+        navigator.serviceWorker.register('sw.js').catch(()=>{});
+    }
+</script>
 </body>
 </html>
