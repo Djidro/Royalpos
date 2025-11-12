@@ -1,5 +1,5 @@
-/*  Bakery-POS  |  PocketBase edition  |  100 % error-safe  */
-(function () {                               // ← async-IIFE keeps old browsers happy
+/*  Bakery-POS  |  PocketBase edition  |  ready-to-use  */
+(function () {
 'use strict';
 
 /* ==================== 0.  CONFIG  ==================== */
@@ -13,14 +13,15 @@ const LS_SHIFT_HISTORY= 'bakeryPosShiftHistory';
 let pb;
 let USE_POCKETBASE = false;
 const PB_PRODUCTS  = 'products';
-const PB_SALES     = 'Receipt';
+const PB_SALES     = 'sales';
 const PB_EXPENSES  = 'expenses';
+const PB_RECEIPTS  = 'Receipt';
 
 function initPocketBase(){
     const isLocal = ['localhost','127.0.0.1'].includes(location.hostname);
     if (!isLocal) return;
     if (typeof PocketBase === 'undefined'){ console.warn('PocketBase UMD not found – localStorage mode'); return;}
-    pb = new PocketBase('http://127.0.0.1:8090');   // ✅ space removed
+    pb = new PocketBase('http://127.0.0.1:8090');
     USE_POCKETBASE = true;
     console.log('%cPocketBase ready','color:green;font-weight:bold');
 }
@@ -30,14 +31,10 @@ const safeParse = k=>{try{return JSON.parse(localStorage.getItem(k)||'[]')}catch
 const safeSave  = (k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){console.error(e)}};
 const escapeHtml = str=>str.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-/* ==================== 2.  PRODUCTS  (CRUD + realtime)  ==================== */
+/* ==================== 2.  PRODUCTS  ==================== */
 async function pbSyncProducts(){
     if (!USE_POCKETBASE || !navigator.onLine) return safeParse(LS_PRODUCTS);
-    try{
-        const recs = await pb.collection(PB_PRODUCTS).getFullList({sort:'-created'});
-        const norm = recs.map(r=>({id:r.id,name:r.name||'',price:parseFloat(r.price)||0,quantity:(r.quantity==='unlimited'||r.quantity==='Unlimited')?'unlimited':(parseInt(r.quantity)||0)}));
-        safeSave(LS_PRODUCTS,norm); return norm;
-    }catch(e){console.warn('PB products sync',e); return safeParse(LS_PRODUCTS)}
+    try{const recs=await pb.collection(PB_PRODUCTS).getFullList({sort:'-created'}); const norm=recs.map(r=>({id:r.id,name:r.name||'',price:parseFloat(r.price)||0,quantity:(r.quantity==='unlimited'||r.quantity==='Unlimited')?'unlimited':(parseInt(r.quantity)||0)})); safeSave(LS_PRODUCTS,norm); return norm;}catch(e){console.warn('PB products sync',e); return safeParse(LS_PRODUCTS)}
 }
 async function pbCreateProduct(p){
     if (!USE_POCKETBASE||!navigator.onLine) return p;
@@ -51,17 +48,22 @@ async function pbDeleteProduct(id){
     if (!USE_POCKETBASE||!navigator.onLine) return;
     try{await pb.collection(PB_PRODUCTS).delete(id)}catch(e){console.warn('PB delete product',e)}
 }
+async function pbGetProductList(page=1,perPage=50,filter='',expand=''){
+    if (!USE_POCKETBASE||!navigator.onLine) return {items:getProducts(),totalItems:getProducts().length};
+    try{return await pb.collection(PB_PRODUCTS).getList(page,perPage,{filter,sort:'-created',expand})}catch(e){console.warn('PB getProductList',e); return {items:getProducts(),totalItems:getProducts().length}}
+}
+async function pbGetFirstProduct(filter='',expand=''){
+    if (!USE_POCKETBASE||!navigator.onLine) return null;
+    try{return await pb.collection(PB_PRODUCTS).getFirstListItem(filter,{expand})}catch(e){console.warn('PB getFirstProduct',e); return null}
+}
 let productsSub = null;
 function subscribeProducts(){
     if (!USE_POCKETBASE||productsSub) return;
-    productsSub = pb.collection(PB_PRODUCTS).subscribe('*',async e=>{
-        console.log('PB realtime product',e.action,e.record);
-        await pbSyncProducts(); loadProducts(); loadStockItems();
-    });
+    productsSub = pb.collection(PB_PRODUCTS).subscribe('*',async e=>{console.log('PB realtime product',e.action,e.record); await pbSyncProducts(); loadProducts(); loadStockItems();});
 }
 window.addEventListener('beforeunload',()=>{if(productsSub) pb.collection(PB_PRODUCTS).unsubscribe(productsSub)});
 
-/* ==================== 3.  SALES / RECEIPTS  ==================== */
+/* ==================== 3.  SALES  ==================== */
 async function pbSaveSale(sale){
     if (!USE_POCKETBASE||!navigator.onLine) return;
     try{await pb.collection(PB_SALES).create({items:sale.items,total:sale.total,payment_method:sale.paymentMethod,time:sale.date,shift_id:sale.shiftId})}catch(e){console.warn('PB save sale',e)}
@@ -69,6 +71,14 @@ async function pbSaveSale(sale){
 async function pbLoadSales(){
     if (!USE_POCKETBASE||!navigator.onLine) return [];
     try{const recs=await pb.collection(PB_SALES).getFullList({sort:'-created'}); return recs.map(r=>({id:r.id,date:r.time||r.created,items:r.items||[],total:r.total||0,paymentMethod:r.payment_method||'unknown',shiftId:r.shift_id||null}))}catch(e){console.warn('PB load sales',e); return []}
+}
+async function pbGetSaleList(page=1,perPage=50,filter='',expand=''){
+    if (!USE_POCKETBASE||!navigator.onLine) return {items:getSales(),totalItems:getSales().length};
+    try{return await pb.collection(PB_SALES).getList(page,perPage,{filter,sort:'-created',expand})}catch(e){console.warn('PB getSaleList',e); return {items:getSales(),totalItems:getSales().length}}
+}
+async function pbGetFirstSale(filter='',expand=''){
+    if (!USE_POCKETBASE||!navigator.onLine) return null;
+    try{return await pb.collection(PB_SALES).getFirstListItem(filter,{expand})}catch(e){console.warn('PB getFirstSale',e); return null}
 }
 
 /* ==================== 4.  EXPENSES  ==================== */
@@ -80,8 +90,34 @@ async function pbLoadExpenses(){
     if (!USE_POCKETBASE||!navigator.onLine) return [];
     try{const recs=await pb.collection(PB_EXPENSES).getFullList({sort:'-created'}); return recs.map(r=>({id:r.id,name:r.name||'',amount:parseFloat(r.amount)||0,notes:r.notes||'',date:r.created}))}catch(e){console.warn('PB load expenses',e); return []}
 }
+async function pbGetExpenseList(page=1,perPage=50,filter='',expand=''){
+    if (!USE_POCKETBASE||!navigator.onLine) return {items:getExpenses(),totalItems:getExpenses().length};
+    try{return await pb.collection(PB_EXPENSES).getList(page,perPage,{filter,sort:'-created',expand})}catch(e){console.warn('PB getExpenseList',e); return {items:getExpenses(),totalItems:getExpenses().length}}
+}
+async function pbGetFirstExpense(filter='',expand=''){
+    if (!USE_POCKETBASE||!navigator.onLine) return null;
+    try{return await pb.collection(PB_EXPENSES).getFirstListItem(filter,{expand})}catch(e){console.warn('PB getFirstExpense',e); return null}
+}
 
-/* ==================== 5.  PRODUCTS UI  ==================== */
+/* ==================== 5.  RECEIPTS  ==================== */
+async function pbSaveReceipt(receipt){
+    if (!USE_POCKETBASE||!navigator.onLine) return;
+    try{await pb.collection(PB_RECEIPTS).create(receipt)}catch(e){console.warn('PB save receipt',e)}
+}
+async function pbLoadReceipts(){
+    if (!USE_POCKETBASE||!navigator.onLine) return [];
+    try{const recs=await pb.collection(PB_RECEIPTS).getFullList({sort:'-created'}); return recs.map(r=>({id:r.id,date:r.created,items:r.items||[],total:r.total||0,paymentMethod:r.payment_method||'unknown',shiftId:r.shift_id||null}))}catch(e){console.warn('PB load receipts',e); return []}
+}
+async function pbGetReceiptList(page=1,perPage=50,filter='',expand=''){
+    if (!USE_POCKETBASE||!navigator.onLine) return {items:getSales(),totalItems:getSales().length};
+    try{return await pb.collection(PB_RECEIPTS).getList(page,perPage,{filter,sort:'-created',expand})}catch(e){console.warn('PB getReceiptList',e); return {items:getSales(),totalItems:getSales().length}}
+}
+async function pbGetFirstReceipt(filter='',expand=''){
+    if (!USE_POCKETBASE||!navigator.onLine) return null;
+    try{return await pb.collection(PB_RECEIPTS).getFirstListItem(filter,{expand})}catch(e){console.warn('PB getFirstReceipt',e); return null}
+}
+
+/* ==================== 6.  PRODUCTS UI  ==================== */
 function getProducts(){return safeParse(LS_PRODUCTS)}
 function saveProducts(p){safeSave(LS_PRODUCTS,p)}
 async function loadProducts(){
@@ -98,7 +134,7 @@ async function loadProducts(){
     });
 }
 
-/* ==================== 6.  CART  ==================== */
+/* ==================== 7.  CART  ==================== */
 function getCart(){return safeParse(LS_CART)}
 function saveCart(c){safeSave(LS_CART,c)}
 function addToCart(p){
@@ -129,7 +165,7 @@ function updateCartDisplay(){
     cont.querySelectorAll('.remove-btn').forEach(b=>b.onclick=()=>{saveCart(getCart().filter(x=>x.id!==b.dataset.id)); updateCartDisplay()});
 }
 
-/* ==================== 7.  CHECKOUT  ==================== */
+/* ==================== 8.  CHECKOUT  ==================== */
 async function checkout(){
     const shift=getActiveShift(); if(!shift){alert('Start a shift first');return}
     const cart=getCart(); if(!cart.length){alert('Cart is empty');return}
@@ -148,7 +184,7 @@ async function checkout(){
     alert('✅ Sale completed');
 }
 
-/* ==================== 8.  RECEIPTS UI  ==================== */
+/* ==================== 9.  SALES / RECEIPTS UI  ==================== */
 function getSales(){return safeParse(LS_SALES)} function saveSales(s){safeSave(LS_SALES,s)}
 async function loadReceipts(){
     const list=document.getElementById('receipts-list'); if(!list)return;
@@ -175,7 +211,7 @@ function showReceipt(sale){
     modal.style.display='block';
 }
 
-/* ==================== 9.  EXPENSES UI  ==================== */
+/* ==================== 10.  EXPENSES UI  ==================== */
 function getExpenses(){return safeParse(LS_EXPENSES)} function saveExpenses(e){safeSave(LS_EXPENSES,e)}
 async function loadExpenses(){
     const list=document.getElementById('expenses-list'); if(!list)return;
@@ -201,7 +237,7 @@ async function addExpense(){
     loadExpenses(); ['expense-name','expense-amount','expense-notes'].forEach(id=>document.getElementById(id).value='');
 }
 
-/* ==================== 10.  SHIFT  ==================== */
+/* ==================== 11.  SHIFT  ==================== */
 function getActiveShift(){const s=safeParse(LS_ACTIVE_SHIFT); return s.length?s[0]:null}
 function saveActiveShift(sh){safeSave(LS_ACTIVE_SHIFT,sh?[sh]:[])}
 function getShiftHistory(){return safeParse(LS_SHIFT_HISTORY)}
@@ -237,7 +273,7 @@ function updateShiftDisplay(){
     }
 }
 
-/* ==================== 11.  SUMMARY  ==================== */
+/* ==================== 12.  SUMMARY  ==================== */
 function loadSummary(){
     const cont=document.getElementById('summary-content'); if(!cont)return;
     const start=document.getElementById('start-date')?.value;
@@ -255,7 +291,7 @@ function loadSummary(){
     cont.innerHTML=`<div class="summary-card"><h3>Sales Summary</h3><div class="summary-row"><span>Date range:</span><span>${start||'Start'} to ${end||'End'}</span></div><div class="summary-row"><span>Transactions:</span><span>${filt.length}</span></div><div class="summary-row"><span>Cash sales:</span><span>${cash.toFixed(2)} RWF</span></div><div class="summary-row"><span>MoMo sales:</span><span>${momo.toFixed(2)} RWF</span></div><div class="summary-row"><span><strong>Grand total:</strong></span><span><strong>${grand.toFixed(2)} RWF</strong></span></div></div><div class="summary-card"><h3>Item breakdown</h3><table class="summary-table"><thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
-/* ==================== 12.  STOCK UI  ==================== */
+/* ==================== 13.  STOCK UI  ==================== */
 function loadStockItems(){
     const cont=document.getElementById('stock-items'); if(!cont)return;
     const prods=getProducts(); cont.innerHTML='';
@@ -270,20 +306,6 @@ function loadStockItems(){
     cont.querySelectorAll('.edit-btn').forEach(b=>b.onclick=()=>editStockItem(b.dataset.id));
     cont.querySelectorAll('.delete-btn').forEach(b=>b.onclick=()=>deleteStockItem(b.dataset.id));
 }
-async function addStockItem(){
-    const name=document.getElementById('item-name').value.trim();
-    const price=parseFloat(document.getElementById('item-price').value);
-    let qty=document.getElementById('item-quantity').value.trim();
-    if(!name){alert('Name required');return} if(isNaN(price)||price<0){alert('Invalid price');return}
-    qty=qty.toLowerCase()==='unlimited'?'unlimited':parseInt(qty);
-    if(qty!=='unlimited'&&(isNaN(qty)||qty<0)){alert('Qty must be number or "unlimited"');return}
-    const prods=getProducts();
-    const idx=prods.findIndex(x=>x.name.toLowerCase()===name.toLowerCase());
-    if(idx!==-1){if(!confirm('Product exists – update?'))return; prods[idx].price=price; prods[idx].quantity=qty; await pbUpdateProduct(prods[idx].id,{name,price,quantity:qty})}
-    else{const p={id:'prod_'+Date.now(),name,price,quantity:qty}; const np=await pbCreateProduct(p); prods.push(np);}
-    saveProducts(prods); loadStockItems(); loadProducts(); checkLowStock();
-    ['item-name','item-price','item-quantity'].forEach(id=>document.getElementById(id).value='');
-}
 async function editStockItem(id){
     const prods=getProducts(),p=prods.find(x=>x.id===id); if(!p){alert('Not found');return}
     const name=prompt('Name:',p.name); if(name===null)return;
@@ -297,13 +319,29 @@ async function deleteStockItem(id){
     if(!confirm('Delete product?'))return; const prods=getProducts().filter(x=>x.id!==id); saveProducts(prods); await pbDeleteProduct(id); loadStockItems(); loadProducts(); checkLowStock();
 }
 
-/* ==================== 13.  LOW-STOCK WARN  ==================== */
+/* ==================== 14.  LOW-STOCK WARN  ==================== */
 function checkLowStock(){
     const low=getProducts().filter(p=>p.quantity!=='unlimited'&&p.quantity<5);
     if(low.length) console.warn('Low stock',low.map(x=>x.name));
 }
 
-/* ==================== 14.  TABS + BUTTON BINDINGS  ==================== */
+/* ==================== 15.  INIT  ==================== */
+document.addEventListener('DOMContentLoaded',()=>{
+    initPocketBase();
+    showNetworkStatus();
+    loadProducts();
+    updateCartDisplay();
+    updateShiftDisplay();
+    checkLowStock();
+    subscribeProducts();
+    bindEvents();
+});
+
+/* ==================== 16.  GLOBAL ERROR GUARD (delete after test) ==
+window.addEventListener('error',e=>{console.error('💥 GLOBAL CRASH',e.message);alert('JS crash: '+e.message)});
+window.addEventListener('unhandledrejection',e=>{console.error('💥 PROMISE CRASH',e.reason);alert('Promise crash: '+e.reason)});
+====================================================================== */
+
 function bindEvents(){
     document.querySelectorAll('.tab-btn').forEach(btn=>{
         btn.addEventListener('click',()=>{
@@ -328,7 +366,6 @@ function bindEvents(){
     window.onclick=e=>{if(e.target.id==='receipt-modal')e.target.style.display='none'};
 }
 
-/* ==================== 15.  NETWORK INDICATOR  ==================== */
 function showNetworkStatus(){
     const existing=document.getElementById('network-status');
     if(existing)existing.remove();
@@ -338,22 +375,5 @@ function showNetworkStatus(){
     if(USE_POCKETBASE){d.textContent='🟢 PocketBase';d.style.background='#22c55e'}else{d.textContent='🔵 Local Storage';d.style.background='#3b82f6'}
     document.body.appendChild(d); setTimeout(()=>d.style.opacity='0',2500);
 }
-
-/* ==================== 16.  INIT on DOM ready  ==================== */
-document.addEventListener('DOMContentLoaded',()=>{
-    initPocketBase();
-    showNetworkStatus();
-    loadProducts();
-    updateCartDisplay();
-    updateShiftDisplay();
-    checkLowStock();
-    bindEvents();
-    subscribeProducts();
-});
-
-/* ==================== 17.  GLOBAL ERROR GUARD (remove after test) =====
-window.addEventListener('error',e=>{console.error('💥 GLOBAL CRASH',e.message);alert('JS crash: '+e.message)});
-window.addEventListener('unhandledrejection',e=>{console.error('💥 PROMISE CRASH',e.reason);alert('Promise crash: '+e.reason)});
-====================================================================== */
 
 })();   // <- end of async-IIFE
