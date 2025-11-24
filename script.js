@@ -160,22 +160,22 @@ function generateShiftReportText(shift) {
     txt += `*End Time:* ${endT ? endT.toLocaleTimeString() : 'Ongoing'}\n`;
     txt += `*Duration:* ${getDuration(shift.startTime, shift.endTime)}\n\n`;
     
-    txt += `*Starting Cash:* ${formatMoney(shift.startingCash || 0)}\n`;
+    txt += `Starting Cash: ${formatMoney(shift.startingCash || 0)}\n`;
     txt += `- 💵 Cash: ${formatMoney(shift.cashSales)}\n`; // EMOJI UPDATE
     txt += `- 📱 MoMo: ${formatMoney(shift.momoSales)}\n`; // EMOJI UPDATE
-    txt += `*Total Sales:* ${formatMoney(shift.totalSales)}\n`;
-    txt += `*Transactions:* ${getStored('sales').filter(s => s.shiftId === shift.id && !s.refunded).length}\n`;
-    txt += `*Refunds:* ${data.refundsCount}\n`;
-    txt += `*Expenses:* ${formatMoney(data.totalExp)}\n\n`;
+    txt += `Total Sales: ${formatMoney(shift.totalSales)}\n`;
+    txt += `Transactions: ${getStored('sales').filter(s => s.shiftId === shift.id && !s.refunded).length}\n`;
+    txt += `Refunds: ${data.refundsCount}\n`;
+    txt += `Expenses: ${formatMoney(data.totalExp)}\n\n`;
 
     // EMOJI UPDATE
-    txt += `📈 *Top 5 Sellers*\n`; 
+    txt += `📈 Top 5 Sellers\n`; 
     data.top5.forEach((item, idx) => {
         txt += `${idx+1}. ${item.name} : ${item.sold} sold\n`;
     });
     
     // EMOJI UPDATE
-    txt += `\n📦 *All Items Sold*\n`; 
+    txt += `\n📦 All Items Sold\n`; 
     data.allItems.forEach(item => {
         txt += `\n➤ ${item.name}\n`;
         txt += `   - Sold: ${item.sold}\n`;
@@ -185,13 +185,13 @@ function generateShiftReportText(shift) {
     });
 
     // EMOJI UPDATE
-    txt += `\n🧾 *Expense Details*\n`; 
+    txt += `\n🧾 Expense Details\n`; 
     data.expenses.forEach(e => {
         txt += `- ${e.desc}: ${formatMoney(e.amount)}\n`;
     });
 
     // EMOJI UPDATE
-    txt += `\n💰 *Cash to deposit (after expenses):* ${formatMoney(data.netCash)}\n`; 
+    txt += `\n💰 Cash to deposit (after expenses):* ${formatMoney(data.netCash)}\n`; 
     txt += `\n_Report generated on ${new Date().toLocaleString()}_`;
     
     return txt;
