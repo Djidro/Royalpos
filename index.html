@@ -2,144 +2,149 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#3b82f6">
-    <meta name="description" content="Offline-first Bakery Point-of-Sale">
-    <title>Bakery POS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Royal Bakes POS</title>
+    
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <script src="https://unpkg.com/pocketbase/dist/pocketbase.umd.js"></script>
-    <script>
-        const isGitHubPages = window.location.hostname.includes('github.io');
-        const isLocalhost   = ['localhost','127.0.0.1'].includes(window.location.hostname);
-        const pb            = isLocalhost ? new PocketBase('http://127.0.0.1:8090') : null;
-    </script>
+    
+    <script src="html2canvas.min.js"></script> 
 </head>
-
 <body>
-<header>
-    <h1>Bakery POS</h1>
-    <div id="network-status" style="display:none;"></div>
-</header>
 
-<nav class="tabs">
-    <button class="tab-btn active" data-tab="sales-tab">Sales</button>
-    <button class="tab-btn" data-tab="stock-tab">Stock</button>
-    <button class="tab-btn" data-tab="receipts-tab">Receipts</button>
-    <button class="tab-btn" data-tab="summary-tab">Summary</button>
-    <button class="tab-btn" data-tab="shift-tab">Shift</button>
-    <button class="tab-btn" data-tab="expenses-tab">Expenses</button>
-</nav>
+    <div class="app-container">
+        <header>
+            <div class="brand">
+                🍞 Royal Bakes
+            </div>
+            <div id="shift-status-badge" class="badge badge-off">Shift Closed</div>
+        </header>
 
-<!-- ==========  SALES TAB  ========== -->
-<section id="sales-tab" class="tab active">
-    <h2>Sales</h2>
-    <div id="shift-status" class="shift-status shift-off">Shift: OFF</div>
+        <nav class="nav-scroll">
+            <button class="nav-btn active" onclick="switchTab('pos')">🛒 POS</button>
+            <button class="nav-btn" onclick="switchTab('receipts')">🧾 Receipts</button>
+            <button class="nav-btn" onclick="switchTab('summary')">📊 Summary</button>
+            <button class="nav-btn" onclick="switchTab('stock')">📦 Stock</button>
+            <button class="nav-btn" onclick="switchTab('expenses')">💸 Expenses</button>
+            <button class="nav-btn" onclick="switchTab('shift')">🧑‍💻 Shift</button>
+        </nav>
 
-    <h3>Available Products</h3>
-    <div id="products-grid" class="products-grid"></div>
+        <main>
+            <div id="pos" class="tab-content active">
+                <div class="pos-container">
+                    <div class="products-area">
+                        <div id="products-grid" class="glide-grid"></div>
+                    </div>
+                    
+                    <div class="cart-area">
+                        <div class="cart-header">
+                            <h3>Current Order</h3>
+                            <button onclick="clearCart()" class="btn-xs btn-danger">🗑️</button>
+                        </div>
+                        <div id="cart-items" class="cart-list"></div>
+                        
+                        <div class="cart-footer">
+                            <div class="total-row">
+                                <span>Total:</span>
+                                <span id="cart-total-display">0 RWF</span>
+                            </div>
+                            <div class="payment-methods">
+                                <label class="radio-box">
+                                    <input type="radio" name="payment" value="cash" checked>
+                                    <span>Cash</span>
+                                </label>
+                                <label class="radio-box">
+                                    <input type="radio" name="payment" value="momo">
+                                    <span>MoMo</span>
+                                </label>
+                            </div>
+                            <button id="checkout-btn" class="btn-block btn-primary" onclick="processCheckout()" disabled>
+                                Checkout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <h3>Cart</h3>
-    <div id="cart-items" class="cart-container"></div>
-    <p class="cart-total">Total: <span id="cart-total">0 RWF</span></p>
+            <div id="receipts" class="tab-content">
+                <div class="toolbar">
+                    <input type="date" id="receipt-date" class="form-input">
+                    <button onclick="loadReceipts()" class="btn-sm btn-secondary">Filter</button>
+                </div>
+                <div id="receipts-list" class="list-group"></div>
+            </div>
 
-    <div class="payment-methods">
-        <label><input type="radio" name="payment" value="cash" checked> Cash</label>
-        <label><input type="radio" name="payment" value="momo"> MoMo</label>
+            <div id="summary" class="tab-content">
+                <div class="toolbar">
+                    <input type="date" id="summary-start" class="form-input">
+                    <input type="date" id="summary-end" class="form-input">
+                    <button onclick="generateSummary()" class="btn-sm btn-secondary">Go</button>
+                </div>
+                
+                <div class="actions-row">
+                    <button onclick="shareSummaryWhatsApp()" class="btn-whatsapp">💬 WhatsApp</button>
+                    <button onclick="exportElementAsImage('capture-summary', 'Sales_Summary')" class="btn-export">🖼️ Save Image</button>
+                </div>
+
+                <div id="capture-summary" class="printable-card">
+                    <div id="summary-content">
+                        <p class="placeholder-text">Select dates and click Filter.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="stock" class="tab-content">
+                <div class="add-form">
+                    <input type="text" id="stock-name" placeholder="Item Name" class="form-input">
+                    <input type="number" id="stock-price" placeholder="Price" class="form-input">
+                    <input type="text" id="stock-qty" placeholder="Qty (or 'unlimited')" class="form-input">
+                    <button onclick="addStockItem()" class="btn-sm btn-primary">➕ Add</button>
+                </div>
+                <div id="stock-list" class="list-group"></div>
+            </div>
+
+            <div id="expenses" class="tab-content">
+                <div class="add-form">
+                    <input type="text" id="expense-desc" placeholder="Description" class="form-input">
+                    <input type="number" id="expense-amt" placeholder="Amount" class="form-input">
+                    <button onclick="addExpense()" class="btn-sm btn-primary">➕ Add Expense</button>
+                </div>
+                <div id="expenses-list" class="list-group"></div>
+            </div>
+
+            <div id="shift" class="tab-content">
+                <div id="shift-controls" class="shift-controls">
+                    <button id="btn-start-shift" onclick="startShift()" class="btn-block btn-success">Start Shift</button>
+                    <button id="btn-end-shift" onclick="endShift()" class="btn-block btn-danger" disabled>End Shift</button>
+                </div>
+
+                <div id="shift-actions" class="actions-row" style="display:none;">
+                    <button onclick="shareShiftWhatsApp()" class="btn-whatsapp">💬 WhatsApp</button>
+                    <button onclick="exportElementAsImage('capture-shift', 'Shift_Report')" class="btn-export">🖼️ Save Image</button>
+                </div>
+
+                <div id="capture-shift" class="printable-card shift-report-container">
+                    <div id="shift-report-content">
+                        <p class="placeholder-text">No active shift data.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
-    <button id="checkout-btn" class="btn btn-primary" disabled>Checkout</button>
-</section>
-
-<!-- ==========  STOCK TAB  ========== -->
-<section id="stock-tab" class="tab">
-    <h2>Stock Management</h2>
-    <div class="stock-form">
-        <input id="item-name"     type="text"   placeholder="Item name" required>
-        <input id="item-price"    type="number" placeholder="Price" min="0" step="0.01" required>
-        <input id="item-quantity" type="text"   placeholder="Quantity (number or unlimited)" required>
-        <button id="add-item-btn" class="btn">Add / Update Product</button>
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Receipt</h3>
+                <button onclick="closeModal()" class="close-btn">&times;</button>
+            </div>
+            <div id="modal-body" class="modal-body"></div>
+            <div class="modal-footer">
+                <button id="btn-refund" class="btn-sm btn-danger" style="display:none;">Refund</button>
+                <button onclick="closeModal()" class="btn-sm btn-secondary">Close</button>
+            </div>
+        </div>
     </div>
-    <h3>Current Stock</h3>
-    <div id="stock-items"></div>
-</section>
 
-<!-- ==========  RECEIPTS TAB  ========== -->
-<section id="receipts-tab" class="tab">
-    <h2>Receipts History</h2>
-    <div class="filter-section">
-        <label>Filter by Date: <input id="receipt-date-filter" type="date"></label>
-        <button id="load-receipts-btn" class="btn">Load Receipts</button>
-    </div>
-    <div id="receipts-list"></div>
-</section>
-
-<!-- ==========  RECEIPT MODAL  ========== -->
-<div id="receipt-modal" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <div id="receipt-content"></div>
-    </div>
-</div>
-
-<!-- ==========  SUMMARY TAB  ========== -->
-<section id="summary-tab" class="tab">
-    <h2>Sales Summary</h2>
-    <div class="filter-section">
-        <label>Start Date: <input id="start-date" type="date"></label>
-        <label>End Date: <input id="end-date" type="date"></label>
-        <button id="load-summary-btn" class="btn">Generate Summary</button>
-    </div>
-    <div id="summary-content"></div>
-</section>
-
-<!-- ==========  SHIFT TAB  ========== -->
-<section id="shift-tab" class="tab">
-    <h2>Shift Management</h2>
-    <div class="shift-controls">
-        <button id="start-shift-btn" class="btn btn-success">Start Shift</button>
-        <button id="end-shift-btn" class="btn btn-danger">End Shift</button>
-    </div>
-    <div id="shift-summary"></div>
-</section>
-
-<!-- ==========  EXPENSES TAB  ========== -->
-<section id="expenses-tab" class="tab">
-    <h2>Expenses & Notes</h2>
-    <div class="expense-form">
-        <input type="text" id="expense-name"   placeholder="Expense name (leave empty for note)">
-        <input type="number" id="expense-amount" placeholder="Amount (0 for note)" min="0" step="0.01">
-        <textarea id="expense-notes" placeholder="Notes (optional)"></textarea>
-        <button id="add-expense-btn" class="btn">Add Expense/Note</button>
-    </div>
-    <h3>Recent Expenses & Notes</h3>
-    <div id="expenses-list"></div>
-</section>
-
-<!-- ==========  OFFLINE BANNER  ========== -->
-<div id="offline-banner" style="display:none;position:fixed;top:0;left:0;right:0;background:#ef4444;color:#fff;text-align:center;padding:6px;font-size:14px;z-index:9999;">You are offline – data saved locally</div>
-
-<!-- ==========  DEMO NOTICE  ========== -->
-<div id="demo-notice" style="display:none;">
-    <div style="background:#f0f8ff;padding:10px;margin:10px 0;border-left:4px solid #3b82f6;">
-        <strong>Demo Mode:</strong> Running on GitHub Pages. Data is stored locally in your browser.
-    </div>
-</div>
-
-<script>
-    /* show demo banner on GitHub Pages */
-    if (isGitHubPages) document.getElementById('demo-notice').style.display='block';
-    /* show/hide offline banner */
-    window.addEventListener('online',()=>document.getElementById('offline-banner').style.display='none');
-    window.addEventListener('offline',()=>document.getElementById('offline-banner').style.display='block');
-</script>
-
-<script src="script.js"></script>
-<script>
-    /* register service worker for offline use (PWA) – fails gracefully on GitHub Pages */
-    if ('serviceWorker' in navigator && isLocalhost) {
-        navigator.serviceWorker.register('sw.js').catch(()=>{});
-    }
-</script>
+    <script src="script.js"></script>
 </body>
 </html>
