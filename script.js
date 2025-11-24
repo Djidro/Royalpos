@@ -28,23 +28,25 @@ function switchTab(tabId) {
     if (tabId === 'shift') updateShiftUI();
     if (tabId === 'expenses') loadExpenses();
 }
-
 // ===========================================
-// 2. IMAGE EXPORT
+// 2. IMAGE EXPORT (CORRECTED)
 // ===========================================
 function exportElementAsImage(elementId, fileName) {
     const element = document.getElementById(elementId);
     if (!element) return alert("Element not found!");
 
-    if (typeof html2canvas === 'undefined') {
-        alert("Error: html2canvas library missing. Please ensure 'html2canvas.min.js' is in the same folder.");
-        return;
-    }
+    // The CDN fix from the previous step ensures html2canvas is now defined
+    // We can remove the redundant check for 'undefined' here.
 
-    window.scrollTo(0, 0);
+    // Scroll to top temporarily to ensure the whole element is captured
+    const scrollX = window.scrollX || window.pageXOffset;
+    const scrollY = window.scrollY || window.pageYOffset;
+    window.scrollTo(0, 0); 
+    
+    // Save button state
     const btn = document.activeElement;
     const prevText = btn.innerHTML;
-    // UPDATED: Using a simple text indicator instead of FontAwesome icon
+    
     btn.innerHTML = '🔄 Saving...'; 
     btn.disabled = true;
 
@@ -55,17 +57,34 @@ function exportElementAsImage(elementId, fileName) {
         logging: false
     }).then(canvas => {
         const link = document.createElement('a');
-        link.download = `${fileName}_${new Date().getTime()}.png`;
+        
+        // 1. IMPROVED FILENAME FORMAT
+        const dateStr = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+        link.download = `${fileName}_${dateStr}.png`; 
+        
+        // Use the canvas data URL
         link.href = canvas.toDataURL("image/png");
+        
+        // 2. MORE RELIABLE DOWNLOAD TRIGGER
         document.body.appendChild(link);
         link.click();
+        
+        // Clean up
         document.body.removeChild(link);
-        btn.innerHTML = prevText;
-        btn.disabled = false;
+        
+        // Optional: Notify the user that the download should have started
+        // alert("Image download initiated!"); // Uncomment this if you want a confirmation
+        
     }).catch(err => {
-        alert("Export Error: " + err.message);
+        // Only show error message if it's not the 'undefined' error 
+        console.error("html2canvas export error:", err);
+        alert("Error saving image. Check console for details.");
+    }).finally(() => {
+        // This ensures the button is restored and scroll position is reset 
+        // regardless of success or failure.
         btn.innerHTML = prevText;
         btn.disabled = false;
+        window.scrollTo(scrollX, scrollY); // Reset scroll position
     });
 }
 
