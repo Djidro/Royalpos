@@ -2,146 +2,491 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Royal Bakes POS</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#8B1E3F">
+    <title>💗 Love Quest · Tasnim</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    
 </head>
 <body>
 
-    <div class="app-container">
-        <header>
-            <div class="brand">
-                🍞 Royal Bakes
-            </div>
-            <div id="shift-status-badge" class="badge badge-off">Shift Closed</div>
-        </header>
-
-        <nav class="nav-scroll">
-            <button class="nav-btn active" onclick="switchTab('pos')">🛒 POS</button>
-            <button class="nav-btn" onclick="switchTab('receipts')">🧾 Receipts</button>
-            <button class="nav-btn" onclick="switchTab('summary')">📊 Summary</button>
-            <button class="nav-btn" onclick="switchTab('stock')">📦 Stock</button>
-            <button class="nav-btn" onclick="switchTab('expenses')">💸 Expenses</button>
-            <button class="nav-btn" onclick="switchTab('shift')">🧑‍💻 Shift</button>
-        </nav>
-
-        <main>
-            <div id="pos" class="tab-content active">
-                <div class="pos-container">
-                    <div class="products-area">
-                        <div id="products-grid" class="glide-grid"></div>
-                    </div>
-                    
-                    <div class="cart-area">
-                        <div class="cart-header">
-                            <h3>Current Order</h3>
-                            <button onclick="clearCart()" class="btn-xs btn-danger">🗑️</button>
-                        </div>
-                        <div id="cart-items" class="cart-list"></div>
-                        
-                        <div class="cart-footer">
-                            <div class="total-row">
-                                <span>Total:</span>
-                                <span id="cart-total-display">0 RWF</span>
-                            </div>
-                            <div class="payment-methods">
-                                <label class="radio-box">
-                                    <input type="radio" name="payment" value="cash" checked>
-                                    <span>Cash</span>
-                                </label>
-                                <label class="radio-box">
-                                    <input type="radio" name="payment" value="momo">
-                                    <span>MoMo</span>
-                                </label>
-                            </div>
-                            <button id="checkout-btn" class="btn-block btn-primary" onclick="processCheckout()" disabled>
-                                Checkout
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="receipts" class="tab-content">
-                <div class="toolbar">
-                    <input type="date" id="receipt-date" class="form-input">
-                    <button onclick="loadReceipts()" class="btn-sm btn-secondary">Filter</button>
-                </div>
-                <div id="receipts-list" class="list-group"></div>
-            </div>
-
-            <div id="summary" class="tab-content">
-                <div class="toolbar">
-                    <input type="date" id="summary-start" class="form-input">
-                    <input type="date" id="summary-end" class="form-input">
-                    <button onclick="generateSummary()" class="btn-sm btn-secondary">Go</button>
-                </div>
-                
-                <div class="actions-row">
-                    <button onclick="shareSummaryWhatsApp()" class="btn-whatsapp">💬 WhatsApp</button>
-                    <button onclick="exportElementAsImage('capture-summary', 'Sales_Summary')" class="btn-export">🖼️ Save Image</button>
-                </div>
-
-                <div id="capture-summary" class="printable-card">
-                    <div id="summary-content">
-                        <p class="placeholder-text">Select dates and click Filter.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div id="stock" class="tab-content">
-                <div class="add-form">
-                    <input type="text" id="stock-name" placeholder="Item Name" class="form-input">
-                    <input type="number" id="stock-price" placeholder="Price" class="form-input">
-                    <input type="text" id="stock-qty" placeholder="Qty (or 'unlimited')" class="form-input">
-                    <button onclick="addStockItem()" class="btn-sm btn-primary">➕ Add</button>
-                </div>
-                <div id="stock-list" class="list-group"></div>
-            </div>
-
-            <div id="expenses" class="tab-content">
-                <div class="add-form">
-                    <input type="text" id="expense-desc" placeholder="Description" class="form-input">
-                    <input type="number" id="expense-amt" placeholder="Amount" class="form-input">
-                    <button onclick="addExpense()" class="btn-sm btn-primary">➕ Add Expense</button>
-                </div>
-                <div id="expenses-list" class="list-group"></div>
-            </div>
-
-            <div id="shift" class="tab-content">
-                <div id="shift-controls" class="shift-controls">
-                    <button id="btn-start-shift" onclick="startShift()" class="btn-block btn-success">Start Shift</button>
-                    <button id="btn-end-shift" onclick="endShift()" class="btn-block btn-danger" disabled>End Shift</button>
-                </div>
-
-                <div id="shift-actions" class="actions-row" style="display:none;">
-                    <button onclick="shareShiftWhatsApp()" class="btn-whatsapp">💬 WhatsApp</button>
-                    <button onclick="exportElementAsImage('capture-shift', 'Shift_Report')" class="btn-export">🖼️ Save Image</button>
-                </div>
-
-                <div id="capture-shift" class="printable-card shift-report-container">
-                    <div id="shift-report-content">
-                        <p class="placeholder-text">No active shift data.</p>
-                    </div>
-                </div>
-            </div>
-        </main>
+    <!-- ============================================================
+         🎬 CINEMATIC OPENING
+         ============================================================ -->
+    <div id="introOverlay">
+        <div class="intro-heartbeat-line">
+            <svg viewBox="0 0 800 120" preserveAspectRatio="none">
+                <path id="heartbeatPath" d="M0,60 L120,60 L140,20 L160,100 L180,60 L300,60 L320,30 L340,90 L360,60 L520,60 L540,15 L560,105 L580,60 L800,60" />
+            </svg>
+        </div>
+        <div class="intro-date" id="introDate">28 • 12 • 2017</div>
+        <div class="intro-line" id="introLine1">And everything changed… ❤️</div>
+        <div class="intro-line" id="introLine2">Our story began.</div>
+        <button id="skipIntroBtn" class="skip-intro-btn">Skip ✨</button>
     </div>
 
-    <div id="modal-overlay" class="modal-overlay">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>Receipt</h3>
-                <button onclick="closeModal()" class="close-btn">&times;</button>
+    <canvas id="heart-particle-canvas"></canvas>
+
+    <!-- ========== PASSWORD PROTECTION OVERLAY ========= -->
+    <div id="loginOverlay" class="hidden">
+        <div class="login-card">
+            <div class="login-icon">💗</div>
+            <h2>Love Quest</h2>
+            <p class="subtitle">QUEEN ALMAHDI ✨</p>
+            <input type="password" id="passwordInput" class="login-input"
+                   placeholder="🔐 Our special date" autocomplete="off" />
+            <button id="loginBtn" class="login-btn">💕 Open Our World</button>
+            <p id="loginError" class="error-message"></p>
+            <div class="hint-note">infinite</div>
+        </div>
+    </div>
+
+    <!-- ========== MAIN WEBSITE ========= -->
+    <div id="mainApp">
+        <div class="game-wrapper">
+
+            <!-- ⭐ HERO DAYS TOGETHER BANNER ⭐ -->
+            <div id="daysTogetherCard" class="days-hero">
+                <div class="days-hero-glow"></div>
+                <div class="days-hero-heart">💞</div>
+                <div class="days-hero-title">Together since 28 December 2017</div>
+                <div class="days-hero-number">
+                    <span id="daysCount">0</span>
+                    <span class="days-hero-unit">days</span>
+                </div>
+                <div class="days-hero-breakdown">
+                    <div class="dh-item"><span id="bdYears">0</span><label>years</label></div>
+                    <div class="dh-item"><span id="bdMonths">0</span><label>months</label></div>
+                    <div class="dh-item"><span id="bdDays">0</span><label>days</label></div>
+                    <div class="dh-item"><span id="bdHours">0</span><label>hours</label></div>
+                    <div class="dh-item"><span id="bdMins">0</span><label>mins</label></div>
+                    <div class="dh-item"><span id="bdSecs">0</span><label>secs</label></div>
+                </div>
+                <div class="days-hero-sub" id="daysSubtitle">Every second with you counts ❤️</div>
+                <div class="days-hero-hint">✨ tap any option below to explore ✨</div>
             </div>
-            <div id="modal-body" class="modal-body"></div>
-            <div class="modal-footer">
-                <button id="btn-refund" class="btn-sm btn-danger" style="display:none;">Refund</button>
-                <button onclick="closeModal()" class="btn-sm btn-secondary">Close</button>
+
+            <div id="dynamicNameDisplay" class="girl-name-badge">✨ Tasnim ✨</div>
+
+            <!-- HOME SCREEN -->
+            <div id="homeScreen" class="screen active">
+                <h1 style="font-size: 2.4rem;">Love Quest 💚</h1>
+                <p style="margin: 8px 0 18px; font-size: 1.3rem;" id="welcomeMessage">
+                    Welcome, Tasnim 💚 This world was made just for you.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <button id="startStoryBtn">💌 Open When... Letters</button>
+                    <button id="goMiniGameBtn">🎮 Catch the Hearts</button>
+                    <button id="goExperienceBtn" class="wheel-nav-btn">🌹 The Love Experience</button>
+                    <button id="goNotesBtn">💭 Notes</button>
+                    <button id="goGalleryBtn">🖼️ Memory Gallery</button>
+                    <button id="goFutureBtn" class="future-nav-btn">🗓️ Our Future ❤️</button>
+                    <button id="goWheelBtn" class="wheel-nav-btn">🎡 Spin My Love</button>
+                </div>
+                <div style="margin-top: 28px;">
+                    <button id="missMeBtn">🥺 Miss Me?</button>
+                    <button id="whatsappBtn" style="background: #dcf8c6;">💬 Send me a message ❤️</button>
+                </div>
             </div>
+
+            <!-- OPEN WHEN LETTERS SCREEN -->
+            <div id="storyScreen" class="screen">
+                <div class="letters-header">
+                    <h2>💌 Open When... Letters</h2>
+                    <p class="letters-sub">Little pieces of my heart, sealed for the moments you need them most.</p>
+                </div>
+                <div id="lettersGrid" class="letters-grid"></div>
+                <div id="openLetterView" class="open-letter-view hidden">
+                    <div class="open-letter-paper">
+                        <div class="open-letter-icon" id="openLetterIcon">💌</div>
+                        <div class="open-letter-title" id="openLetterTitle">Open when...</div>
+                        <div class="open-letter-body" id="openLetterBody"></div>
+                        <div class="open-letter-signature" id="openLetterSignature">— With all my love ❤️</div>
+                    </div>
+                    <div class="open-letter-actions">
+                        <button id="closeLetterBtn">📬 Close Letter</button>
+                        <button id="backFromStory">🏠 Home</button>
+                    </div>
+                </div>
+                <button id="backFromStoryBottom" class="back-home-btn" style="margin-top: 16px;">🏠 Back Home</button>
+            </div>
+
+            <!-- MINI GAME SCREEN -->
+            <div id="miniGameScreen" class="screen">
+                <h2>💚 Catch the Hearts</h2>
+                <div style="display: flex; justify-content: space-between; font-weight: 600; padding: 0 8px;">
+                    <span>Score: <span id="gameScore">0</span></span>
+                    <span>Level: <span id="gameLevel">1</span></span>
+                    <span id="gameLives">❤️❤️❤️</span>
+                </div>
+                <canvas id="gameCanvas" width="500" height="400"></canvas>
+                <div style="display: flex; gap: 8px; margin-top: 8px; justify-content: center;">
+                    <button id="restartMiniGame">🔄 Restart</button>
+                    <button id="backFromMiniGame">🏠 Home</button>
+                </div>
+                <p style="margin-top: 12px; font-size: 0.9rem; text-align: center;">
+                    ← → or drag · catch ❤️💛 · avoid 🖤
+                </p>
+            </div>
+
+            <!-- ============================================================
+                 🌹 THE LOVE EXPERIENCE SCREEN (replaces Daily Love Message)
+                 ============================================================ -->
+            <div id="experienceScreen" class="screen">
+                <div class="exp-header">
+                    <h2>🌹 The Love Experience</h2>
+                    <p class="exp-sub">A journey made just for you, my love. Take your time. ❤️</p>
+                </div>
+
+                <div class="exp-nav">
+                    <button class="exp-chip active" data-exp="rose">🌹 Rose</button>
+                    <button class="exp-chip" data-exp="heartbeat">💓 Heartbeat</button>
+                    <button class="exp-chip" data-exp="universe">🌌 Universe</button>
+                    <button class="exp-chip" data-exp="gift">🎁 Gift</button>
+                    <button class="exp-chip" data-exp="catch">✨ Catch</button>
+                    <button class="exp-chip" data-exp="reasons">💎 100 Reasons</button>
+                    <button class="exp-chip" data-exp="bubbles">📸 Memories</button>
+                    <button class="exp-chip" data-exp="rain">🌧️ Rain</button>
+                    <button class="exp-chip" data-exp="candle">🕯️ Letter</button>
+                    <button class="exp-chip" data-exp="moon">🌙 Moon</button>
+                    <button class="exp-chip" data-exp="queen">👑 Queen</button>
+                    <button class="exp-chip" data-exp="garden">🌷 Garden</button>
+                    <button class="exp-chip" data-exp="final">💌 Final</button>
+                </div>
+
+                <!-- 🌹 ROSE REVEAL -->
+                <div class="exp-panel active" data-panel="rose">
+                    <div class="rose-stage">
+                        <div class="rose" id="roseClickable">
+                            <div class="rose-stem"></div>
+                            <div class="rose-leaf rose-leaf-left"></div>
+                            <div class="rose-leaf rose-leaf-right"></div>
+                            <div class="rose-bud">
+                                <div class="petal p1"></div>
+                                <div class="petal p2"></div>
+                                <div class="petal p3"></div>
+                                <div class="petal p4"></div>
+                                <div class="petal p5"></div>
+                                <div class="petal p6"></div>
+                                <div class="petal p7"></div>
+                                <div class="petal p8"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="rose-hint" id="roseHint">Tap the rose 🌹</p>
+                    <p class="rose-message" id="roseMessage">Some flowers are beautiful… but none of them are as beautiful as you. 🌹❤️</p>
+                </div>
+
+                <!-- 💓 HEARTBEAT EXPERIENCE -->
+                <div class="exp-panel" data-panel="heartbeat">
+                    <div class="heartbeat-stage">
+                        <svg class="heartbeat-svg" viewBox="0 0 800 160" preserveAspectRatio="none">
+                            <path class="hb-path" d="M0,80 L200,80 L220,40 L240,120 L260,80 L400,80 L420,30 L440,130 L460,80 L800,80" />
+                        </svg>
+                        <div class="hb-heart" id="heartbeatHeart">❤️</div>
+                        <p class="heartbeat-caption">This is what happens to my heart when I see you. ❤️</p>
+                        <p class="heartbeat-reveal" id="heartbeatReveal">Yes… you do that to me. 🥰</p>
+                    </div>
+                </div>
+
+                <!-- 🌌 OUR UNIVERSE -->
+                <div class="exp-panel" data-panel="universe">
+                    <div class="universe-stage" id="universeStage">
+                        <div class="universe-star star-a" id="starA" title="Click me">
+                            <span class="star-glow"></span>
+                            <span class="star-dot">✦</span>
+                        </div>
+                        <div class="universe-star star-b" id="starB" title="Click me">
+                            <span class="star-glow"></span>
+                            <span class="star-dot">✦</span>
+                        </div>
+                        <svg class="universe-connect" id="universeConnect" viewBox="0 0 400 240" preserveAspectRatio="none">
+                            <path id="connectLine" d="" fill="none" stroke="url(#heartGrad)" stroke-width="2"/>
+                            <defs>
+                                <linearGradient id="heartGrad" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0%" stop-color="#D4AF6A"/>
+                                    <stop offset="100%" stop-color="#E8A0B8"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div class="universe-msg" id="universeMsgA">You are my first thought in the morning.</div>
+                        <div class="universe-msg" id="universeMsgB">And my last wish at night.</div>
+                        <div class="universe-final" id="universeFinal">
+                            No matter how big this universe is, I would still choose you. ❤️
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🎁 SECRET GIFT BOX -->
+                <div class="exp-panel" data-panel="gift">
+                    <div class="gift-stage">
+                        <div class="gift-box" id="giftBox">
+                            <div class="gift-lid"></div>
+                            <div class="gift-body"></div>
+                            <div class="gift-ribbon-v"></div>
+                            <div class="gift-ribbon-h"></div>
+                            <div class="gift-bow">🎀</div>
+                        </div>
+                        <div class="gift-light" id="giftLight"></div>
+                    </div>
+                    <div class="gift-result" id="giftResult">
+                        <div class="gift-result-title" id="giftResultTitle"></div>
+                        <div class="gift-result-body" id="giftResultBody"></div>
+                    </div>
+                    <button id="openAnotherGiftBtn" class="gift-btn hidden">🎁 Open Another Gift</button>
+                    <p class="gift-hint" id="giftHint">Tap the gift 🎁</p>
+                </div>
+
+                <!-- ✨ CATCH THE HEARTS (tap game) -->
+                <div class="exp-panel" data-panel="catch">
+                    <div class="catch-stage" id="catchStage">
+                        <div class="catch-hud">
+                            <span>Caught: <span id="catchCount">0</span></span>
+                            <span id="catchMsg">Tap the hearts ❤️</span>
+                        </div>
+                        <div class="catch-area" id="catchArea"></div>
+                        <div class="catch-final hidden" id="catchFinal">
+                            <p>You caught them all… but you still haven't caught the biggest thing.</p>
+                            <h3>My heart. ❤️</h3>
+                        </div>
+                        <button id="restartCatchBtn" class="gift-btn" style="margin-top:12px;">🔄 Play Again</button>
+                    </div>
+                </div>
+
+                <!-- 💎 100 REASONS I LOVE YOU -->
+                <div class="exp-panel" data-panel="reasons">
+                    <div class="reasons-stage">
+                        <h3 class="reasons-title">100 Reasons I Love You ❤️</h3>
+                        <div class="reasons-counter" id="reasonsCounter">1 / 100</div>
+                        <div class="reasons-heart" id="reasonsHeart">💗</div>
+                        <div class="reasons-text" id="reasonsText">Because you make me smile.</div>
+                        <div class="reasons-final hidden" id="reasonsFinal">
+                            <h3>And even 100 reasons aren't enough. ❤️</h3>
+                        </div>
+                        <button id="resetReasonsBtn" class="gift-btn" style="margin-top:12px;">🔄 Start Over</button>
+                    </div>
+                </div>
+
+                <!-- 📸 FLOATING MEMORY BUBBLES -->
+                <div class="exp-panel" data-panel="bubbles">
+                    <div class="bubbles-header">
+                        <h3>📸 Our Little Moments</h3>
+                        <p>Tap a bubble to open a memory 💫</p>
+                    </div>
+                    <div class="bubbles-stage" id="bubblesStage"></div>
+                    <div class="bubble-modal hidden" id="bubbleModal">
+                        <div class="bubble-modal-card">
+                            <button class="bubble-close" id="bubbleClose">✕</button>
+                            <img id="bubbleImg" src="" alt="" />
+                            <div class="bubble-date" id="bubbleDate"></div>
+                            <div class="bubble-caption" id="bubbleCaption"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🌧️ RAIN TO LOVE -->
+                <div class="exp-panel" data-panel="rain">
+                    <div class="rain-stage" id="rainStage">
+                        <div class="rain-clouds" id="rainClouds"></div>
+                        <div class="rain-drops" id="rainDrops"></div>
+                        <div class="rain-stars hidden" id="rainStars"></div>
+                        <div class="rain-text">
+                            <p class="rain-line1" id="rainLine1">Even on the difficult days…</p>
+                            <p class="rain-line2 hidden" id="rainLine2">You make everything brighter. ❤️</p>
+                        </div>
+                        <button id="rainTrigger" class="gift-btn" style="margin-top:20px;">Touch the sky ✨</button>
+                    </div>
+                </div>
+
+                <!-- 🕯️ CANDLE LOVE LETTER -->
+                <div class="exp-panel" data-panel="candle">
+                    <div class="candle-stage">
+                        <div class="candle" id="candleClickable">
+                            <div class="candle-flame"></div>
+                            <div class="candle-glow"></div>
+                            <div class="candle-body"></div>
+                        </div>
+                        <div class="candle-letter hidden" id="candleLetter">
+                            <div class="candle-letter-paper">
+                                <p>My love,</p>
+                                <p>If you're reading this by candlelight, then I hope you feel how close I am to you right now — even if I'm not in the same room.</p>
+                                <p>Every day with you feels like a quiet miracle. Every ordinary moment becomes a memory worth keeping.</p>
+                                <p>Thank you for being mine. Thank you for letting me be yours.</p>
+                                <p>— Forever yours ❤️</p>
+                            </div>
+                            <button id="closeCandleLetter" class="gift-btn" style="margin-top:12px;">Close Letter ❤️</button>
+                        </div>
+                        <p class="candle-hint" id="candleHint">Tap the candle 🕯️</p>
+                    </div>
+                </div>
+
+                <!-- 🌙 MOON MESSAGE -->
+                <div class="exp-panel" data-panel="moon">
+                    <div class="moon-stage">
+                        <div class="moon-sky">
+                            <div class="moon-cloud cloud1"></div>
+                            <div class="moon-cloud cloud2"></div>
+                            <div class="moon" id="moonClickable">🌕</div>
+                        </div>
+                        <p class="moon-msg" id="moonMsg">Tap the moon 🌙</p>
+                        <p class="moon-hint">Each phase reveals a different message</p>
+                    </div>
+                </div>
+
+                <!-- 👑 QUEEN MODE -->
+                <div class="exp-panel" data-panel="queen">
+                    <div class="queen-stage">
+                        <div class="queen-crown">👑</div>
+                        <h3 class="queen-title">Welcome, My Queen 👑</h3>
+                        <p class="queen-sub">Enter my kingdom and see how I feel about you.</p>
+                        <button id="queenEnterBtn" class="gift-btn">Enter My Kingdom ❤️</button>
+                        <div class="queen-message hidden" id="queenMessage">
+                            <p>You are the queen of my heart, my days, and every dream I have.</p>
+                            <p>Every day I'm grateful for you. Every day I choose you. Every day I will.</p>
+                            <p>— Your King ❤️</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🌷 GROWING LOVE (GARDEN) -->
+                <div class="exp-panel" data-panel="garden">
+                    <div class="garden-stage">
+                        <h3 class="garden-title">🌷 Our Little Garden</h3>
+                        <p class="garden-sub">Every moment you've explored has grown us a little more.</p>
+                        <div class="garden-soil">
+                            <div class="plant" id="plant">
+                                <div class="plant-stem"></div>
+                                <div class="plant-leaves">🌿</div>
+                                <div class="plant-bloom" id="plantBloom">🌱</div>
+                            </div>
+                        </div>
+                        <p class="garden-msg" id="gardenMsg">Tap things around the website to help it grow 🌱</p>
+                    </div>
+                </div>
+
+                <!-- 💌 FINAL LOVE LETTER -->
+                <div class="exp-panel" data-panel="final">
+                    <div class="final-stage">
+                        <div class="final-heart" id="finalHeart">❤️</div>
+                        <p class="final-line1">After everything you've discovered…</p>
+                        <p class="final-line2">There is still one thing I want you to know.</p>
+                        <p class="final-hint" id="finalHint">Tap the heart ❤️</p>
+                        <div class="final-letter hidden" id="finalLetter">
+                            <p>My love,</p>
+                            <p>From the moment our story began on 28 December 2017, I knew you were different. You weren't just someone I loved — you became the person I built my whole world around.</p>
+                            <p>Every laugh. Every tear. Every ordinary evening. Every long distance. Every quiet morning. All of it — you.</p>
+                            <p>I don't know what the years will bring. But I know who I want beside me through every one of them.</p>
+                            <p>You. Always you.</p>
+                            <p>I love you more than words can hold. And I always will.</p>
+                            <p class="final-sign">28 December 2017 → Forever ❤️</p>
+                        </div>
+                        <div class="final-confetti" id="finalConfetti"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOTES SCREEN -->
+            <div id="notesScreen" class="screen">
+                <div class="notes-header">
+                    <h2>💭 Our Love Notes</h2>
+                    <p class="notes-subtitle">Leave thoughts, sweet nothings, and little reminders...</p>
+                </div>
+                <div class="note-composer">
+                    <input type="text" id="nameInput" class="note-input" placeholder="Your name..." maxlength="30" />
+                    <textarea id="newNoteText" class="note-input" placeholder="Write a sweet note..." maxlength="280" rows="2"></textarea>
+                    <div class="composer-footer">
+                        <span class="char-count"><span id="charCount">0</span>/280</span>
+                        <button id="saveNoteBtn" class="save-note-btn">💕 Drop Note</button>
+                    </div>
+                </div>
+                <div id="notesList" class="notes-list">
+                    <div class="notes-empty">
+                        <div class="empty-notes-icon">💌</div>
+                        <p>No notes yet...</p>
+                        <p class="notes-empty-sub">Write the first love note!</p>
+                    </div>
+                </div>
+                <button id="backFromNotes" class="back-home-btn">🏠 Back Home</button>
+            </div>
+
+            <!-- MEMORY GALLERY -->
+            <div id="galleryScreen" class="screen">
+                <h2>🕊️ Our little moments</h2>
+                <div id="videoReelContainer" class="video-reel-container"></div>
+                <button id="backFromGallery" style="margin-top: 20px;">🏠 Home</button>
+            </div>
+
+            <!-- OUR FUTURE PLANNER -->
+            <div id="futureScreen" class="screen">
+                <div class="future-header">
+                    <h2>Our Future ❤️</h2>
+                    <p class="future-intro">A place where our plans live, grow, and slowly become real as time moves forward.</p>
+                </div>
+                <div class="future-form-card">
+                    <div class="form-header">
+                        <span class="form-icon">✨</span>
+                        <h3>Add a new plan</h3>
+                    </div>
+                    <div class="future-form">
+                        <div class="form-row">
+                            <input type="text" id="planTitle" placeholder="What are we planning?" maxlength="40" class="future-input" />
+                        </div>
+                        <div class="form-row">
+                            <textarea id="planDescription" placeholder="Add a sweet note..." maxlength="120" rows="2" class="future-textarea"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">When? 📅</label>
+                            <input type="datetime-local" id="planDate" class="future-input" />
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Who's adding this?</label>
+                            <div class="author-selector">
+                                <button type="button" class="author-btn active" data-author="Me ❤️">Me ❤️</button>
+                                <button type="button" class="author-btn" data-author="Her 💕">Her 💕</button>
+                            </div>
+                        </div>
+                        <button id="addPlanBtn" class="future-add-btn">
+                            <span>➕</span> Add to Our Future
+                        </button>
+                    </div>
+                </div>
+                <div id="futurePlansContainer" class="future-plans-container">
+                    <div class="empty-state" id="emptyFutureState">
+                        <div class="empty-icon">📝</div>
+                        <p>No plans yet...</p>
+                        <p class="empty-subtitle">Add your first plan together!</p>
+                    </div>
+                </div>
+                <button id="backFromFuture" class="future-back-btn">🏠 Back Home</button>
+            </div>
+
+            <!-- 🎡 SPIN MY LOVE WHEEL SCREEN -->
+            <div id="wheelScreen" class="screen">
+                <div class="wheel-header">
+                    <h2>🎡 Spin My Love</h2>
+                    <p class="wheel-sub">Give it a spin, my love — let fate pick your surprise today. ✨</p>
+                </div>
+                <div class="wheel-stage">
+                    <div class="wheel-pointer" aria-hidden="true">▼</div>
+                    <div class="wheel-outer-glow"></div>
+                    <canvas id="wheelCanvas" width="500" height="500"></canvas>
+                    <button id="spinBtn" class="spin-center-btn" aria-label="Spin the wheel">
+                        <span class="spin-label">SPIN</span>
+                        <span class="spin-heart">❤️</span>
+                    </button>
+                </div>
+                <div id="wheelResult" class="wheel-result-card hidden">
+                    <div class="result-header">🎉 YOUR RESULT</div>
+                    <div class="result-title" id="resultTitle"></div>
+                    <div class="result-body" id="resultBody"></div>
+                    <div class="result-kisses" id="resultKisses"></div>
+                    <div class="result-actions">
+                        <button id="spinAgainBtn" class="spin-again-btn">🎡 SPIN AGAIN</button>
+                    </div>
+                </div>
+                <button id="backFromWheel" class="back-home-btn" style="margin-top: 16px;">🏠 Back Home</button>
+            </div>
+
+            <div id="finalMessageContainer" style="margin-top: 16px;"></div>
         </div>
     </div>
 
